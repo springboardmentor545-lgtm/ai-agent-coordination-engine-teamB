@@ -5,7 +5,7 @@ from fastapi.exceptions import RequestValidationError
 from fastapi.responses import JSONResponse
 from fastapi import Request
 
-app = FastAPI(title="AI Agent Coordination & Decision Engine - Milestone 1")
+app = FastAPI(title="Enterprise Workflow Platform with Decision Automation System - Milestone 2")
 
 @app.exception_handler(RequestValidationError)
 async def validation_exception_handler(request: Request, exc: RequestValidationError):

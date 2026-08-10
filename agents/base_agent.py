@@ -2,7 +2,7 @@ from langchain_groq import ChatGroq
 from langgraph.prebuilt import create_react_agent
 from config.settings import GROQ_API_KEY
 from tools.weather_tool import weather_tool
-
+from tools.calculator_tool import calculator_tool
 
 class Agent:
     def __init__(self, name: str, model: str = "llama-3.3-70b-versatile"):
@@ -16,7 +16,7 @@ class Agent:
         )
 
         # List of tools this agent is allowed to use
-        self.tools = [weather_tool]
+        self.tools = [weather_tool, calculator_tool]
 
         # Build a tool-calling agent: the LLM decides whether to answer
         # directly or call one of the tools first

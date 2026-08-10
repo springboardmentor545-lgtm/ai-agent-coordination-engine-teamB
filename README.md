@@ -1,4 +1,4 @@
-# AI Agent Coordination & Decision Engine
+# Development of Enterprise Workflow Platform with Decision Automation System
 
 ## Milestone 1 - Agent Foundation Development
 
