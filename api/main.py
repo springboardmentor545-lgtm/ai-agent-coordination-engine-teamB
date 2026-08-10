@@ -5,7 +5,7 @@ from agents.base_agent import Agent
 
 
 app = FastAPI(
-    title="AI Agent Coordination & Decision Engine - Milestone 2"
+    title=" Development of Enterprise Workflow Platform with Decision Automation System- Milestone 2"
 )
 
 
