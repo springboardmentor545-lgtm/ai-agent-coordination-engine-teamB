@@ -1,0 +1,16 @@
+venv/
+<<<<<<< HEAD
+.venv/
+__pycache__/
+*.py[cod]
+.pytest_cache/
+.env
+*.zip
+*.log
+dist/
+build/
+=======
+.env
+__pycache__/
+*.pyc
+>>>>>>> c3947e8381429ac462fd9c02c6675e6969060595
