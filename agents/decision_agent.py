@@ -1,3 +1,4 @@
+from db.queries import save_long_term_memory
 from agents.base_agent import Agent
 
 decision_worker = Agent(
@@ -41,6 +42,23 @@ def decision_agent(state):
         state["decision"] = result
         state["completed_steps"] = state.get("completed_steps", []) + ["decision"]
         state["final_response"] = result
+
+        # Persist this decision to long-term memory for future conversations
+        outcome = "UNKNOWN"
+        if result.upper().startswith("APPROVE"):
+            outcome = "APPROVE"
+        elif result.upper().startswith("REJECT"):
+            outcome = "REJECT"
+        elif result.upper().startswith("ESCALATE"):
+            outcome = "ESCALATE"
+
+        save_long_term_memory(state["employee_id"], "leave_decision", {
+            "decision": outcome,
+            "start_date": state.get("start_date"),
+            "end_date": state.get("end_date"),
+            "summary": result,
+        })
+
     except Exception as e:
         state["error"] = f"decision: {str(e)}"
     return state

@@ -1,3 +1,4 @@
+from db.queries import get_long_term_memory
 import json
 from langchain_core.tools import tool
 from db.queries import get_leave_balance, get_leave_history, get_team_calendar, get_department_size
@@ -33,3 +34,11 @@ def fetch_department_size(department: str) -> str:
     percentage of the team is on leave during a given period."""
     result = get_department_size(department)
     return json.dumps({"department_size": result})
+
+@tool
+def fetch_past_decisions(employee_id: str) -> str:
+    """Fetch this employee's past leave decisions from long-term memory, from previous
+    conversations. Useful for understanding patterns like how many requests they've
+    made recently or what was decided before."""
+    result = get_long_term_memory(employee_id)
+    return json.dumps(result)

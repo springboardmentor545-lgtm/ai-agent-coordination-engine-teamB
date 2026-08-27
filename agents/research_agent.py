@@ -1,23 +1,26 @@
 import json
 from langchain_core.messages import ToolMessage
 from agents.base_agent import Agent
-from tools.research_tools import fetch_leave_balance, fetch_leave_history, fetch_team_calendar, fetch_department_size
+from tools.research_tools import fetch_leave_balance, fetch_leave_history, fetch_team_calendar, fetch_department_size, fetch_past_decisions
 
 research_worker = Agent(
     name="Research Agent",
-    tools=[fetch_leave_balance, fetch_leave_history, fetch_team_calendar, fetch_department_size],
-    system_instruction=(
+    tools=[fetch_leave_balance, fetch_leave_history, fetch_team_calendar, fetch_department_size, fetch_past_decisions],
+        system_instruction=(
         "You are a Research Agent for an employee leave approval system. "
         "Your job is to gather ALL facts needed to evaluate a leave request. "
-        "You MUST call all four of your tools for every request, in this order: "
+        "You MUST call these tools for every request, in this order: "
         "1) fetch_leave_balance to get the employee's balance and department, "
         "2) fetch_leave_history to get their past leave records, "
         "3) fetch_team_calendar to check for scheduling conflicts during the requested dates "
         "(use the department returned by fetch_leave_balance), "
         "4) fetch_department_size to get the total team size for that same department "
-        "(this is required to calculate what percentage of the team is on leave). "
-        "Do not skip fetch_department_size — it is required even if no conflicts are found. "
-        "After gathering all four results, summarize the facts clearly. "
+        "(this is required to calculate what percentage of the team is on leave), "
+        "5) fetch_past_decisions to check this employee's leave decision history from "
+        "previous conversations, since this helps understand their recent leave pattern. "
+        "Do not skip fetch_department_size or fetch_past_decisions — both are required "
+        "for every request. "
+        "After gathering all results, summarize the facts clearly. "
         "Do not make decisions or judgments — only gather and report facts."
     )
 )
