@@ -46,7 +46,8 @@ def planning_agent(state):
             f"Today's date is {today}.\n"
             f"User request: \"{state['user_query']}\"\n"
             f"{existing_context}\n\n"
-            f"Extract the structured fields as instructed."
+            f"Extract the structured fields as instructed. If the user did not give clear, "
+            f"specific dates, set start_date and end_date to null (not a string like 'not specified')."
         )
 
         result = planning_worker.think(task)
@@ -54,25 +55,43 @@ def planning_agent(state):
         try:
             parsed = json.loads(result)
         except json.JSONDecodeError:
-            parsed = {
-                "start_date": None,
-                "end_date": None,
-                "reason": "not specified",
-                "plan": "Could not parse dates from the request. Manual clarification needed.",
-            }
+            parsed = {"start_date": None, "end_date": None, "reason": "not specified", "plan": ""}
 
         policy_text = load_policy_document()
 
+        new_start = parsed.get("start_date")
+        new_end = parsed.get("end_date")
+
+        # Treat any non-date-looking value as null (defensive against the LLM returning text like "not specified")
+        def is_valid_date_string(val):
+            if not val or not isinstance(val, str):
+                return False
+            try:
+                from datetime import datetime as _dt
+                _dt.strptime(val, "%Y-%m-%d")
+                return True
+            except ValueError:
+                return False
+
+        if not is_valid_date_string(new_start):
+            new_start = None
+        if not is_valid_date_string(new_end):
+            new_end = None
+
         state["request_date"] = today
-        # Only overwrite if the new extraction actually found a value; otherwise keep what we had
-        state["start_date"] = parsed.get("start_date") or state.get("start_date")
-        state["end_date"] = parsed.get("end_date") or state.get("end_date")
+        state["start_date"] = new_start or state.get("start_date")
+        state["end_date"] = new_end or state.get("end_date")
         state["plan"] = parsed.get("plan", "")
         state["fetched_data"] = {
             "reason": parsed.get("reason") or state.get("fetched_data", {}).get("reason", "not specified"),
             "policy_document": policy_text,
         }
         state["completed_steps"] = state.get("completed_steps", []) + ["planning"]
+
+        # Hard stop if we still don't have usable dates after all this
+        if not state["start_date"] or not state["end_date"]:
+            state["error"] = "planning: Could not determine specific leave dates from the request. Please ask the employee for exact start and end dates."
+
     except Exception as e:
         state["error"] = f"planning: {str(e)}"
     return state

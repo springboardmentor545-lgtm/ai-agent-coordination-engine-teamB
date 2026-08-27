@@ -26,6 +26,9 @@ coordinator_worker = Agent(
         "- Normally dispatch agents in order: planning -> research -> analysis -> decision.\n"
         "- If an error is present for the most recently attempted agent, and its retry count "
         "is below max_retries_allowed, choose action 'retry' with next_agent set to that same agent.\n"
+        "EXCEPTION: if the error is from 'planning' and mentions missing or unclear dates, this is a "
+        "user input problem, not a transient failure — choose action 'finish' immediately instead of retrying, "
+        "since retrying won't produce different dates.\n"
         "- Once decision is in completed_steps, choose action 'finish'.\n"
     )
 )
