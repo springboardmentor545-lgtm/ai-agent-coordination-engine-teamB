@@ -1,5 +1,6 @@
 from typing import TypedDict, Optional
 from langgraph.graph import StateGraph, END
+from langgraph.checkpoint.memory import MemorySaver
 
 from agents.coordinator_agent import coordinator_agent
 from agents.planning_agent import planning_agent
@@ -66,4 +67,5 @@ builder.add_edge("research", "coordinator")
 builder.add_edge("analysis", "coordinator")
 builder.add_edge("decision", "coordinator")
 
-leave_approval_graph = builder.compile()
+checkpointer = MemorySaver()
+leave_approval_graph = builder.compile(checkpointer=checkpointer)
