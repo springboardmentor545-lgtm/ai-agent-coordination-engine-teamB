@@ -86,3 +86,40 @@ def get_department_size(department: str) -> int:
     cursor.close()
     conn.close()
     return count
+
+import json as _json
+
+
+def save_long_term_memory(employee_id: str, key: str, value: dict) -> None:
+    """Store a piece of long-term memory for an employee (e.g. a past decision record)."""
+    conn = get_connection()
+    cursor = conn.cursor()
+    cursor.execute(
+        "INSERT INTO long_term_memory (employee_id, key, value) VALUES (%s, %s, %s);",
+        (employee_id, key, _json.dumps(value))
+    )
+    conn.commit()
+    cursor.close()
+    conn.close()
+
+
+def get_long_term_memory(employee_id: str, limit: int = 5) -> list[dict]:
+    """Fetch the most recent long-term memory records for an employee."""
+    conn = get_connection()
+    cursor = conn.cursor()
+    cursor.execute(
+        "SELECT key, value, updated_at FROM long_term_memory WHERE employee_id = %s ORDER BY updated_at DESC LIMIT %s;",
+        (employee_id, limit)
+    )
+    rows = cursor.fetchall()
+    cursor.close()
+    conn.close()
+
+    results = []
+    for key, value, updated_at in rows:
+        try:
+            parsed_value = _json.loads(value) if isinstance(value, str) else value
+        except (_json.JSONDecodeError, TypeError):
+            parsed_value = value
+        results.append({"key": key, "value": parsed_value, "updated_at": str(updated_at)})
+    return results
