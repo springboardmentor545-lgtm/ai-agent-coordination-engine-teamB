@@ -30,9 +30,22 @@ def planning_agent(state):
     state["error"] = None
     try:
         today = date.today().isoformat()
+
+        existing_context = ""
+        if state.get("start_date") or state.get("end_date"):
+            existing_context = (
+                f"\n\nContext already known from earlier in this conversation:\n"
+                f"Previously requested start date: {state.get('start_date')}\n"
+                f"Previously requested end date: {state.get('end_date')}\n"
+                f"If the new message modifies this (e.g. 'extend by a day', 'change to a different date'), "
+                f"apply that change to the known dates. If the new message doesn't mention dates at all, "
+                f"reuse the previously known dates unchanged."
+            )
+
         task = (
             f"Today's date is {today}.\n"
-            f"User request: \"{state['user_query']}\"\n\n"
+            f"User request: \"{state['user_query']}\"\n"
+            f"{existing_context}\n\n"
             f"Extract the structured fields as instructed."
         )
 
@@ -51,11 +64,12 @@ def planning_agent(state):
         policy_text = load_policy_document()
 
         state["request_date"] = today
-        state["start_date"] = parsed.get("start_date")
-        state["end_date"] = parsed.get("end_date")
+        # Only overwrite if the new extraction actually found a value; otherwise keep what we had
+        state["start_date"] = parsed.get("start_date") or state.get("start_date")
+        state["end_date"] = parsed.get("end_date") or state.get("end_date")
         state["plan"] = parsed.get("plan", "")
         state["fetched_data"] = {
-            "reason": parsed.get("reason", "not specified"),
+            "reason": parsed.get("reason") or state.get("fetched_data", {}).get("reason", "not specified"),
             "policy_document": policy_text,
         }
         state["completed_steps"] = state.get("completed_steps", []) + ["planning"]
