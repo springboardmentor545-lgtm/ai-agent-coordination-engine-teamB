@@ -1,21 +1,18 @@
 # Development of Enterprise Workflow Platform with Decision Automation System
-An AI agent built using **LangChain, Groq, and FastAPI**, extended with an external Weather Tool for retrieving real-time weather information.
 
-## Milestone 1 – Agent Foundation
+An AI-powered multi-agent decision automation system built using **LangChain, LangGraph, Groq, FastAPI, PostgreSQL, and external tools**.
+
+## Milestone 1 - Agent Foundation Development
 
 ### Setup
 
-```bash
-python -m venv venv
-venv\Scripts\activate
-pip install -r requirements.txt
-```
-
-Create a `.env` file:
+1. Create virtual environment: `python -m venv venv`
+2. Activate: `venv\Scripts\activate`
+3. Install dependencies: `pip install -r requirements.txt`
+4. Create a `.env` file and add your Groq API key:
 
 ```env
-GROQ_API_KEY=your_groq_api_key
-WEATHER_API_KEY=your_weather_api_key
+GROQ_API_KEY=your_groq_api_key_here
 ```
 
 ### Run
@@ -24,97 +21,130 @@ WEATHER_API_KEY=your_weather_api_key
 uvicorn api.main:app --reload
 ```
 
-API documentation:
+Visit `http://127.0.0.1:8000/docs` to test.
 
-`http://127.0.0.1:8000/docs`
-
-### Milestone 1 Features
+### What's built
 
 * Basic LangChain Agent using Groq LLM
 * FastAPI `POST /ask` endpoint
 * Pydantic request/response validation
-* Basic error handling
 
----
+## Milestone 2 - Tool Integration & Intelligent Action Execution
 
-## Milestone 2 – Weather Tool Integration
+### What's new
 
-The agent was extended with an external **Weather Tool** using WeatherAPI.
+* Weather Tool for retrieving current weather information using WeatherAPI
+* Calculator Tool for basic mathematical calculations
+* Tool selection and execution through the agent
+* Input validation and error handling for tool operations
+
+### Setup
+
+Add the WeatherAPI key to `.env`:
+
+```env
+WEATHER_API_KEY=your_weather_api_key_here
+```
+
+The WeatherAPI key can be obtained from the WeatherAPI website.
+
+## Milestone 3 - Multi-Agent Coordination, Decision Automation & Memory
+
+### What's new
+
+* Multi-agent workflow using **LangGraph**
+* Planning Agent for breaking requests into tasks
+* Research Agent for collecting information and using available tools
+* Analysis Agent for analyzing research results
+* Decision Agent for generating the final response
+* Shared state between agents
+* Short-term and long-term memory using **PostgreSQL**
+* Error handling and validation between workflow stages
+* Simple web frontend for interacting with the system
 
 ### Workflow
 
 ```text
 User
- ↓
+  ↓
 FastAPI
- ↓
-LangChain Agent
- ↓
- ┌──────────────────┬─────────────────┐
- │ Weather-related  │ Other questions │
- ↓                  ↓
-Weather Tool        LLM
- ↓
-Weather API
- ↓
+  ↓
+Planning Agent
+  ↓
+Research Agent
+  ↓
+Analysis Agent
+  ↓
+Decision Agent
+  ↓
 Final Response
 ```
 
-The agent can use the Weather Tool when current weather information is required and use the LLM directly for general questions.
+### PostgreSQL Setup
 
-### Weather Tool
+PostgreSQL is required for Milestone 3 memory functionality.
 
-Implemented in:
+1. Install PostgreSQL and ensure the PostgreSQL service is running.
+2. Create a database named `ai_agent_db`.
+3. Add the database connection details to `.env`:
 
-```text
-tools/weather_tool.py
+```env
+DATABASE_URL=postgresql://postgres:your_postgres_password@localhost:5432/ai_agent_db
 ```
 
-The tool provides:
+4. Initialize the database tables:
 
-* Current temperature
-* Weather condition
-* Humidity
-* Wind speed
-* City and country
+```bash
+python memory/init_db.py
+```
 
-### Validation & Error Handling
+### Complete `.env`
 
-The application handles:
+```env
+GROQ_API_KEY=your_groq_api_key_here
+WEATHER_API_KEY=your_weather_api_key_here
+DATABASE_URL=postgresql://postgres:your_postgres_password@localhost:5432/ai_agent_db
+```
 
-* Empty and whitespace-only questions
-* Missing or invalid request fields
-* Invalid city names
-* Missing API keys
-* Weather API failures
-* API timeouts and connection errors
-* Unexpected application errors
+### Frontend
 
-Invalid API requests are rejected with appropriate HTTP validation errors before reaching the agent.
+After starting the FastAPI server, open:
 
-### Testing
+```text
+Frontend/index.html
+```
 
-The implementation was tested locally for:
-
-* Normal LLM questions
-* Weather-related questions
-* Different cities
-* Invalid cities
-* Empty/invalid inputs
-* API failures
-* FastAPI endpoint behavior
+The frontend communicates with the FastAPI `/ask` endpoint and supports session-based conversations.
 
 ### Project Structure
 
 ```text
 ai-agent-coordination-engine-teamB/
 ├── agents/
-│   └── base_agent.py
+│   ├── analysis_agent.py
+│   ├── decision_agent.py
+│   ├── planning_agent.py
+│   ├── research_agent.py
+│   ├── state.py
+│   └── workflow.py
 ├── api/
 │   └── main.py
+├── config/
+│   ├── database.py
+│   └── settings.py
+├── memory/
+│   ├── database_models.py
+│   ├── init_db.py
+│   ├── long_term_memory.py
+│   └── short_term_memory.py
 ├── tools/
+│   ├── calculator_tool.py
 │   └── weather_tool.py
-├── test_agent.py
+├── Frontend/
+│   ├── index.html
+│   ├── script.js
+│   └── style.css
+├── test_memory.py
 ├── .env.example
 ├── .gitignore
 ├── README.md
@@ -123,6 +153,6 @@ ai-agent-coordination-engine-teamB/
 
 ### Technologies
 
-**Python · LangChain · Groq · FastAPI · Pydantic · WeatherAPI · Requests · Git/GitHub**
+**Python · LangChain · LangGraph · Groq · FastAPI · PostgreSQL · SQLAlchemy · Pydantic · WeatherAPI · Requests · Git/GitHub**
 
-> **Security:** API keys are stored locally in `.env`. The `.env` file is excluded from Git; only `.env.example` is committed.
+> **Security:** API keys and database credentials are stored locally in `.env`. The `.env` file is excluded from Git; only `.env.example` is committed.
