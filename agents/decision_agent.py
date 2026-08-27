@@ -26,17 +26,21 @@ decision_worker = Agent(
 )
 
 def decision_agent(state):
-    rule_results = state["analysis"]["rule_results"]
+    state["error"] = None
+    try:
+        rule_results = state["analysis"]["rule_results"]
 
-    task = (
-        f"Here are the policy analysis results for this leave request:\n"
-        f"{rule_results}\n\n"
-        f"Give the final decision (APPROVE, REJECT, or ESCALATE) with a clear explanation."
-    )
+        task = (
+            f"Here are the policy analysis results for this leave request:\n"
+            f"{rule_results}\n\n"
+            f"Give the final decision (APPROVE, REJECT, or ESCALATE) with a clear explanation."
+        )
 
-    result = decision_worker.think(task)
+        result = decision_worker.think(task)
 
-    state["decision"] = result
-    state["completed_steps"] = state.get("completed_steps", []) + ["decision"]
-    state["final_response"] = result
+        state["decision"] = result
+        state["completed_steps"] = state.get("completed_steps", []) + ["decision"]
+        state["final_response"] = result
+    except Exception as e:
+        state["error"] = f"decision: {str(e)}"
     return state

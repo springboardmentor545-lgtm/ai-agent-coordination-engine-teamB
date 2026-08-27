@@ -23,39 +23,46 @@ research_worker = Agent(
 )
 
 def research_agent(state):
-    task = (
-        f"Employee ID: {state['employee_id']}. "
-        f"Plan from previous step: {state.get('plan', '')}. "
-        f"Gather leave balance, leave history, and team calendar conflicts relevant to this request: "
-        f"{state['user_query']}"
-    )
+    state["error"] = None
+    try:
+        task = (
+            f"Employee ID: {state['employee_id']}. "
+            f"Plan from previous step: {state.get('plan', '')}. "
+            f"Gather leave balance, leave history, and team calendar conflicts relevant to this request: "
+            f"{state['user_query']}"
+        )
 
-    result = research_worker.think_with_trace(task)
-    messages = result["messages"]
-    narrative = messages[-1].content
+        result = research_worker.think_with_trace(task)
+        messages = result["messages"]
+        narrative = messages[-1].content
 
-    raw_data = {}
-    for msg in messages:
-        if isinstance(msg, ToolMessage):
-            tool_name = msg.name
-            try:
-                content = json.loads(msg.content) if isinstance(msg.content, str) else msg.content
-            except (json.JSONDecodeError, TypeError):
-                content = msg.content
-            raw_data[tool_name] = content
+        raw_data = {}
+        for msg in messages:
+            if isinstance(msg, ToolMessage):
+                tool_name = msg.name
+                try:
+                    content = json.loads(msg.content) if isinstance(msg.content, str) else msg.content
+                except (json.JSONDecodeError, TypeError):
+                    content = msg.content
+                raw_data[tool_name] = content
 
-    # Safety net: if the LLM skipped fetch_department_size, fetch it directly
-    if "fetch_department_size" not in raw_data:
-        department = None
+        if "fetch_department_size" not in raw_data:
+            department = None
+            if "fetch_leave_balance" in raw_data and isinstance(raw_data["fetch_leave_balance"], dict):
+                department = raw_data["fetch_leave_balance"].get("department")
+            if department:
+                raw_result = fetch_department_size.invoke({"department": department})
+                raw_data["fetch_department_size"] = json.loads(raw_result)
+
         if "fetch_leave_balance" in raw_data and isinstance(raw_data["fetch_leave_balance"], dict):
-            department = raw_data["fetch_leave_balance"].get("department")
-        if department:
-            raw_result = fetch_department_size.invoke({"department": department})
-            raw_data["fetch_department_size"] = json.loads(raw_result)
+            if raw_data["fetch_leave_balance"].get("error"):
+                raise ValueError(raw_data["fetch_leave_balance"]["error"])
 
-    state["research"] = {
-        "narrative": narrative,
-        "raw_data": raw_data,
-    }
-    state["completed_steps"] = state.get("completed_steps", []) + ["research"]
+        state["research"] = {
+            "narrative": narrative,
+            "raw_data": raw_data,
+        }
+        state["completed_steps"] = state.get("completed_steps", []) + ["research"]
+    except Exception as e:
+        state["error"] = f"research: {str(e)}"
     return state

@@ -27,34 +27,38 @@ def load_policy_document():
         return f.read()
 
 def planning_agent(state):
-    today = date.today().isoformat()
-    task = (
-        f"Today's date is {today}.\n"
-        f"User request: \"{state['user_query']}\"\n\n"
-        f"Extract the structured fields as instructed."
-    )
-
-    result = planning_worker.think(task)
-
+    state["error"] = None
     try:
-        parsed = json.loads(result)
-    except json.JSONDecodeError:
-        parsed = {
-            "start_date": None,
-            "end_date": None,
-            "reason": "not specified",
-            "plan": "Could not parse dates from the request. Manual clarification needed.",
+        today = date.today().isoformat()
+        task = (
+            f"Today's date is {today}.\n"
+            f"User request: \"{state['user_query']}\"\n\n"
+            f"Extract the structured fields as instructed."
+        )
+
+        result = planning_worker.think(task)
+
+        try:
+            parsed = json.loads(result)
+        except json.JSONDecodeError:
+            parsed = {
+                "start_date": None,
+                "end_date": None,
+                "reason": "not specified",
+                "plan": "Could not parse dates from the request. Manual clarification needed.",
+            }
+
+        policy_text = load_policy_document()
+
+        state["request_date"] = today
+        state["start_date"] = parsed.get("start_date")
+        state["end_date"] = parsed.get("end_date")
+        state["plan"] = parsed.get("plan", "")
+        state["fetched_data"] = {
+            "reason": parsed.get("reason", "not specified"),
+            "policy_document": policy_text,
         }
-
-    policy_text = load_policy_document()
-
-    state["request_date"] = today
-    state["start_date"] = parsed.get("start_date")
-    state["end_date"] = parsed.get("end_date")
-    state["plan"] = parsed.get("plan", "")
-    state["fetched_data"] = {
-        "reason": parsed.get("reason", "not specified"),
-        "policy_document": policy_text,
-    }
-    state["completed_steps"] = state.get("completed_steps", []) + ["planning"]
+        state["completed_steps"] = state.get("completed_steps", []) + ["planning"]
+    except Exception as e:
+        state["error"] = f"planning: {str(e)}"
     return state
