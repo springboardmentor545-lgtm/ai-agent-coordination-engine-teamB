@@ -22,10 +22,13 @@ class LeaveApprovalState(TypedDict, total=False):
     research: dict
     analysis: dict
     decision: str
+    decision_outcome: Optional[str]
     error: Optional[str]
     retry_count: dict
     coordinator_decision: dict
     final_response: str
+    delta_applied: bool
+    delta_note: str
 
 
 def route_from_coordinator(state):

@@ -1,4 +1,4 @@
-from db.queries import save_long_term_memory
+from db.queries import save_long_term_memory, deduct_leave_balance, record_leave_history
 from agents.base_agent import Agent
 
 decision_worker = Agent(
@@ -30,20 +30,14 @@ def decision_agent(state):
     state["error"] = None
     try:
         rule_results = state["analysis"]["rule_results"]
-
         task = (
             f"Here are the policy analysis results for this leave request:\n"
             f"{rule_results}\n\n"
             f"Give the final decision (APPROVE, REJECT, or ESCALATE) with a clear explanation."
         )
-
         result = decision_worker.think(task)
 
-        state["decision"] = result
-        state["completed_steps"] = state.get("completed_steps", []) + ["decision"]
-        state["final_response"] = result
-
-        # Persist this decision to long-term memory for future conversations
+        # Detect outcome from the RAW result, before any delta note is prepended
         outcome = "UNKNOWN"
         if result.upper().startswith("APPROVE"):
             outcome = "APPROVE"
@@ -52,6 +46,14 @@ def decision_agent(state):
         elif result.upper().startswith("ESCALATE"):
             outcome = "ESCALATE"
 
+        if state.get("delta_note"):
+            result = f"{state['delta_note']}\n\n{result}"
+
+        state["decision"] = result
+        state["completed_steps"] = state.get("completed_steps", []) + ["decision"]
+        state["final_response"] = result
+        state["decision_outcome"] = outcome
+
         save_long_term_memory(state["employee_id"], "leave_decision", {
             "decision": outcome,
             "start_date": state.get("start_date"),
@@ -59,6 +61,20 @@ def decision_agent(state):
             "summary": result,
         })
 
+        # On approval, deduct the actual working days from balance and record history
+        if outcome == "APPROVE":
+            rule_results = state.get("analysis", {}).get("rule_results", {})
+            working_days = rule_results.get("requested_days", 0)
+            if working_days > 0:
+                deduct_leave_balance(state["employee_id"], working_days)
+            reason = state.get("fetched_data", {}).get("reason", "not specified")
+            record_leave_history(
+                state["employee_id"],
+                state.get("start_date"),
+                state.get("end_date"),
+                "approved",
+                reason,
+            )
     except Exception as e:
         state["error"] = f"decision: {str(e)}"
     return state
