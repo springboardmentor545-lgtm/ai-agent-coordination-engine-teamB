@@ -1,5 +1,7 @@
 import json
 from agents.base_agent import Agent
+from db.queries import get_long_term_memory
+from agents_logic.policy_rules import compute_extension_delta
 
 MAX_RETRIES = 1
 
@@ -37,6 +39,48 @@ def coordinator_agent(state):
     completed_steps = state.get("completed_steps", [])
     error = state.get("error")
     retry_count = state.get("retry_count", {})
+
+    # Deterministic delta check: if this employee has a recent APPROVE and the
+    # new message asks for a different (but overlapping/adjacent) date range,
+    # evaluate only the NEW days as an independent request.
+    if not completed_steps == ["planning"] and not state.get("delta_applied"):
+        past_records = get_long_term_memory(state["employee_id"], limit=1)
+        if past_records and past_records[0]["value"].get("decision") == "APPROVE":
+            prev = past_records[0]["value"]
+            prev_start = prev.get("start_date")
+            prev_end = prev.get("end_date")
+            new_start = state.get("start_date")
+            new_end = state.get("end_date")
+            # Only attempt delta logic if the new request already has dates
+            # (Planning hasn't run yet on a totally fresh message, so this mainly
+            # applies when start_date/end_date were carried over from short-term memory)
+            if prev_start and prev_end and new_start and new_end and (new_start != prev_start or new_end != prev_end):
+                delta_start, delta_end = compute_extension_delta(prev_start, prev_end, new_start, new_end)
+                if delta_start and delta_end:
+                    state["start_date"] = delta_start
+                    state["end_date"] = delta_end
+                    state["delta_applied"] = True
+                    state["delta_note"] = (
+                        f"Your leave from {prev_start} to {prev_end} is already approved. "
+                        f"Evaluating only the new portion: {delta_start} to {delta_end}."
+                    )
+
+    # Deterministic lock: once a request has been escalated to a manager,
+    # do not allow further self-service modification within this conversation.
+    if not completed_steps and state.get("decision_outcome") == "ESCALATE":
+        locked_message = (
+            "Your previous leave request was escalated to your manager and is "
+            "pending their review. Please wait for their decision, or contact "
+            "them directly, rather than submitting a new or modified request."
+        )
+        state["coordinator_decision"] = {
+            "action": "finish",
+            "next_agent": None,
+            "reasoning": "Request is locked pending manager review after an earlier escalation.",
+        }
+        state["decision"] = locked_message
+        state["final_response"] = locked_message
+        return state
 
     # Deterministic safety check — no LLM judgment for loop protection
     if error:

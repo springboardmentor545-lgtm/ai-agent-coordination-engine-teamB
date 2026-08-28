@@ -1,11 +1,11 @@
 import json
 from langchain_core.messages import ToolMessage
 from agents.base_agent import Agent
-from tools.research_tools import fetch_leave_balance, fetch_leave_history, fetch_team_calendar, fetch_department_size, fetch_past_decisions
+from tools.research_tools import fetch_leave_balance, fetch_leave_history, fetch_team_calendar, fetch_department_size, fetch_past_decisions, fetch_holidays
 
 research_worker = Agent(
     name="Research Agent",
-    tools=[fetch_leave_balance, fetch_leave_history, fetch_team_calendar, fetch_department_size, fetch_past_decisions],
+    tools=[fetch_leave_balance, fetch_leave_history, fetch_team_calendar, fetch_department_size, fetch_past_decisions, fetch_holidays],
         system_instruction=(
         "You are a Research Agent for an employee leave approval system. "
         "Your job is to gather ALL facts needed to evaluate a leave request. "
@@ -17,9 +17,11 @@ research_worker = Agent(
         "4) fetch_department_size to get the total team size for that same department "
         "(this is required to calculate what percentage of the team is on leave), "
         "5) fetch_past_decisions to check this employee's leave decision history from "
-        "previous conversations, since this helps understand their recent leave pattern. "
-        "Do not skip fetch_department_size or fetch_past_decisions — both are required "
-        "for every request. "
+        "previous conversations, since this helps understand their recent leave pattern, "
+        "6) fetch_holidays for the requested date range, to identify any official company "
+        "holidays that overlap with the request. "
+        "Do not skip fetch_department_size, fetch_past_decisions, or fetch_holidays — all "
+        "are required for every request. "
         "After gathering all results, summarize the facts clearly. "
         "Do not make decisions or judgments — only gather and report facts."
     )
@@ -31,8 +33,13 @@ def research_agent(state):
         task = (
             f"Employee ID: {state['employee_id']}. "
             f"Plan from previous step: {state.get('plan', '')}. "
-            f"Gather leave balance, leave history, and team calendar conflicts relevant to this request: "
-            f"{state['user_query']}"
+            f"The CURRENT full leave request being evaluated is from {state.get('start_date')} "
+            f"to {state.get('end_date')} (inclusive) — this is the complete date range to check, "
+            f"regardless of whether this is a new request or a modification of an earlier one. "
+            f"Original user message: {state['user_query']}. "
+            f"When calling fetch_team_calendar, you MUST use the full range "
+            f"start_date={state.get('start_date')} to end_date={state.get('end_date')} — "
+            f"never check only a single day or partial range."
         )
 
         result = research_worker.think_with_trace(task)
