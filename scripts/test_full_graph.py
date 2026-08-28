@@ -11,13 +11,17 @@ initial_state = {
     "error": None,
 }
 
-final_state = leave_approval_graph.invoke(initial_state, config={"recursion_limit": 25})
+final_state = leave_approval_graph.invoke(
+    initial_state,
+    config={"configurable": {"thread_id": "test-shared-state-diagnostic"}, "recursion_limit": 25}
+)
 
 print("--- Completed Steps ---")
 print(final_state["completed_steps"])
 
 print("\n--- Final Decision ---")
 print(final_state.get("decision"))
-
+print("\n--- Error ---")
+print(final_state.get("error"))
 print("\n--- Coordinator's Last Decision ---")
 print(final_state.get("coordinator_decision"))
