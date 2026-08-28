@@ -123,3 +123,41 @@ def get_long_term_memory(employee_id: str, limit: int = 5) -> list[dict]:
             parsed_value = value
         results.append({"key": key, "value": parsed_value, "updated_at": str(updated_at)})
     return results
+
+def get_holidays_in_range(start_date: str, end_date: str) -> list[str]:
+    """Fetch official company holiday dates that fall within a given date range."""
+    conn = get_connection()
+    cursor = conn.cursor()
+    cursor.execute(
+        "SELECT holiday_date FROM holidays WHERE holiday_date BETWEEN %s AND %s ORDER BY holiday_date;",
+        (start_date, end_date)
+    )
+    rows = cursor.fetchall()
+    cursor.close()
+    conn.close()
+    return [str(row[0]) for row in rows]
+
+def deduct_leave_balance(employee_id: str, days: int) -> None:
+    """Deduct approved leave days from an employee's balance."""
+    conn = get_connection()
+    cursor = conn.cursor()
+    cursor.execute(
+        "UPDATE employees SET leave_balance = leave_balance - %s WHERE employee_id = %s;",
+        (days, employee_id)
+    )
+    conn.commit()
+    cursor.close()
+    conn.close()
+
+
+def record_leave_history(employee_id: str, start_date: str, end_date: str, status: str, reason: str) -> None:
+    """Insert a new record into leave_history when a request is finalized."""
+    conn = get_connection()
+    cursor = conn.cursor()
+    cursor.execute(
+        "INSERT INTO leave_history (employee_id, start_date, end_date, status, reason) VALUES (%s, %s, %s, %s, %s);",
+        (employee_id, start_date, end_date, status, reason)
+    )
+    conn.commit()
+    cursor.close()
+    conn.close()

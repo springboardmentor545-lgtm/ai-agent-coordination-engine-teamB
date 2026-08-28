@@ -26,6 +26,7 @@ def analysis_agent(state):
         team_calendar = raw_data.get("fetch_team_calendar", [])
         dept_size_data = raw_data.get("fetch_department_size", {})
         department_size = dept_size_data.get("department_size", 0) if isinstance(dept_size_data, dict) else 0
+        holidays = raw_data.get("fetch_holidays", [])
 
         task = (
             f"Evaluate this leave request against policy.\n\n"
@@ -34,8 +35,11 @@ def analysis_agent(state):
             f"Requested end date: {state['end_date']}\n"
             f"Employee leave balance: {balance_info.get('leave_balance')}\n"
             f"Team calendar conflicts (raw data): {json.dumps(team_calendar)}\n"
-            f"Department size: {department_size}\n\n"
-            f"Call evaluate_leave_policy with these exact values, then explain the results."
+            f"Department size: {department_size}\n"
+            f"Official company holidays in this range: {json.dumps(holidays)}\n\n"
+            f"Call evaluate_leave_policy with these exact values (including holidays), "
+            f"then explain the results, noting how weekends and holidays affected the "
+            f"actual working-day count if relevant."
         )
 
         result = analysis_worker.think_with_trace(task)

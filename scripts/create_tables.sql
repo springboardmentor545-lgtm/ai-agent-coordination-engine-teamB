@@ -30,3 +30,8 @@ CREATE TABLE IF NOT EXISTS long_term_memory (
     value TEXT NOT NULL,
     updated_at TIMESTAMP NOT NULL DEFAULT NOW()
 );
+
+CREATE TABLE IF NOT EXISTS holidays (
+    holiday_date DATE PRIMARY KEY,
+    name VARCHAR(100) NOT NULL
+);

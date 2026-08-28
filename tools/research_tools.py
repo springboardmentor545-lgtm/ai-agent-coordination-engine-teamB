@@ -1,8 +1,7 @@
-from db.queries import get_long_term_memory
 import json
 from langchain_core.tools import tool
-from db.queries import get_leave_balance, get_leave_history, get_team_calendar, get_department_size
-
+from db.queries import get_leave_balance, get_leave_history, get_team_calendar, get_department_size, get_long_term_memory
+from db.queries import get_holidays_in_range
 
 @tool
 def fetch_leave_balance(employee_id: str) -> str:
@@ -41,4 +40,12 @@ def fetch_past_decisions(employee_id: str) -> str:
     conversations. Useful for understanding patterns like how many requests they've
     made recently or what was decided before."""
     result = get_long_term_memory(employee_id)
+    return json.dumps(result)
+
+@tool
+def fetch_holidays(start_date: str, end_date: str) -> str:
+    """Fetch official company holidays that fall within a date range. Dates must be
+    in YYYY-MM-DD format. Use this to check if any part of a leave request overlaps
+    with a company holiday, so it isn't double-counted against leave balance."""
+    result = get_holidays_in_range(start_date, end_date)
     return json.dumps(result)
