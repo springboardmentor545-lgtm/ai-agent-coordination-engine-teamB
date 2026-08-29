@@ -1,4 +1,7 @@
 import uuid
+from db.queries import get_session, update_session_cancelled_dates, credit_leave_balance, get_holidays_in_range
+from agents_logic.policy_rules import compute_cancellation
+from db.queries import get_sessions_for_employee
 from fastapi import FastAPI, Request
 from fastapi.exceptions import RequestValidationError
 from fastapi.responses import JSONResponse
@@ -32,6 +35,9 @@ class LeaveResponse(BaseModel):
     completed_steps: list
     error: Optional[str] = None
 
+class CancelRequest(BaseModel):
+    dates_to_cancel: list[str]
+
 
 @app.get("/")
 def root():
@@ -45,6 +51,7 @@ def submit_leave_request(request: LeaveRequest):
     initial_state = {
         "user_query": request.user_query,
         "employee_id": request.employee_id,
+        "thread_id": thread_id,
         "completed_steps": [],
         "retry_count": {},
         "error": None,
@@ -68,3 +75,41 @@ def submit_leave_request(request: LeaveRequest):
         completed_steps=result.get("completed_steps", []),
         error=result.get("error"),
     )
+
+@app.get("/sessions")
+def list_sessions(employee_id: str):
+    sessions = get_sessions_for_employee(employee_id)
+    return {"employee_id": employee_id, "sessions": sessions}
+
+@app.post("/sessions/{thread_id}/cancel")
+def cancel_leave(thread_id: str, request: CancelRequest):
+    session = get_session(thread_id)
+    if session is None:
+        return {"error": "Session not found."}
+    if session["decision_outcome"] != "APPROVE":
+        return {"error": "Only approved leave sessions can be cancelled."}
+
+    holidays = set(get_holidays_in_range(session["start_date"], session["end_date"]))
+
+    result = compute_cancellation(
+        session["start_date"],
+        session["end_date"],
+        session["cancelled_dates"],
+        request.dates_to_cancel,
+        holidays,
+    )
+
+    if not result["valid"]:
+        return {"error": result["error"]}
+
+    update_session_cancelled_dates(thread_id, result["updated_cancelled_dates"])
+    if result["working_days_credited"] > 0:
+        credit_leave_balance(session["employee_id"], result["working_days_credited"])
+
+    return {
+        "thread_id": thread_id,
+        "cancelled_dates": result["updated_cancelled_dates"],
+        "remaining_dates": result["remaining_dates"],
+        "working_days_credited": result["working_days_credited"],
+        "message": f"Successfully cancelled {request.dates_to_cancel}. {result['working_days_credited']} day(s) credited back to your leave balance.",
+    }

@@ -161,3 +161,105 @@ def record_leave_history(employee_id: str, start_date: str, end_date: str, statu
     conn.commit()
     cursor.close()
     conn.close()
+
+def create_or_update_session(thread_id: str, employee_id: str, start_date: str, end_date: str, decision_outcome: str, reason: str) -> None:
+    """Insert a new session record, or update it if the thread_id already exists
+    (e.g. after an extend/cancel action on an existing session)."""
+    conn = get_connection()
+    cursor = conn.cursor()
+    cursor.execute(
+        """
+        INSERT INTO sessions (thread_id, employee_id, start_date, end_date, decision_outcome, reason, updated_at)
+        VALUES (%s, %s, %s, %s, %s, %s, NOW())
+        ON CONFLICT (thread_id) DO UPDATE SET
+            start_date = EXCLUDED.start_date,
+            end_date = EXCLUDED.end_date,
+            decision_outcome = EXCLUDED.decision_outcome,
+            reason = EXCLUDED.reason,
+            updated_at = NOW();
+        """,
+        (thread_id, employee_id, start_date, end_date, decision_outcome, reason)
+    )
+    conn.commit()
+    cursor.close()
+    conn.close()
+
+
+def get_sessions_for_employee(employee_id: str) -> list[dict]:
+    """Fetch all past sessions for an employee, most recent first."""
+    conn = get_connection()
+    cursor = conn.cursor()
+    cursor.execute(
+        """
+        SELECT thread_id, start_date, end_date, decision_outcome, reason, created_at, updated_at
+        FROM sessions WHERE employee_id = %s ORDER BY updated_at DESC;
+        """,
+        (employee_id,)
+    )
+    rows = cursor.fetchall()
+    cursor.close()
+    conn.close()
+
+    return [
+        {
+            "thread_id": r[0],
+            "start_date": str(r[1]) if r[1] else None,
+            "end_date": str(r[2]) if r[2] else None,
+            "decision_outcome": r[3],
+            "reason": r[4],
+            "created_at": str(r[5]),
+            "updated_at": str(r[6]),
+        }
+        for r in rows
+    ]
+
+def get_session(thread_id: str) -> dict:
+    """Fetch a single session's full details by thread_id."""
+    conn = get_connection()
+    cursor = conn.cursor()
+    cursor.execute(
+        "SELECT thread_id, employee_id, start_date, end_date, decision_outcome, reason, cancelled_dates FROM sessions WHERE thread_id = %s;",
+        (thread_id,)
+    )
+    row = cursor.fetchone()
+    cursor.close()
+    conn.close()
+
+    if row is None:
+        return None
+
+    return {
+        "thread_id": row[0],
+        "employee_id": row[1],
+        "start_date": str(row[2]) if row[2] else None,
+        "end_date": str(row[3]) if row[3] else None,
+        "decision_outcome": row[4],
+        "reason": row[5],
+        "cancelled_dates": row[6] if row[6] else [],
+    }
+
+
+def update_session_cancelled_dates(thread_id: str, cancelled_dates: list) -> None:
+    """Update a session's cancelled_dates list after a cancellation."""
+    conn = get_connection()
+    cursor = conn.cursor()
+    cursor.execute(
+        "UPDATE sessions SET cancelled_dates = %s, updated_at = NOW() WHERE thread_id = %s;",
+        (_json.dumps(cancelled_dates), thread_id)
+    )
+    conn.commit()
+    cursor.close()
+    conn.close()
+
+
+def credit_leave_balance(employee_id: str, days: int) -> None:
+    """Credit back leave days to an employee's balance (used on cancellation)."""
+    conn = get_connection()
+    cursor = conn.cursor()
+    cursor.execute(
+        "UPDATE employees SET leave_balance = leave_balance + %s WHERE employee_id = %s;",
+        (days, employee_id)
+    )
+    conn.commit()
+    cursor.close()
+    conn.close()

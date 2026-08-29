@@ -35,3 +35,15 @@ CREATE TABLE IF NOT EXISTS holidays (
     holiday_date DATE PRIMARY KEY,
     name VARCHAR(100) NOT NULL
 );
+
+CREATE TABLE IF NOT EXISTS sessions (
+    thread_id VARCHAR(100) PRIMARY KEY,
+    employee_id VARCHAR(20) NOT NULL REFERENCES employees(employee_id),
+    start_date DATE,
+    end_date DATE,
+    decision_outcome VARCHAR(20),
+    reason TEXT,
+    cancelled_dates JSONB NOT NULL DEFAULT '[]',
+    created_at TIMESTAMP NOT NULL DEFAULT NOW(),
+    updated_at TIMESTAMP NOT NULL DEFAULT NOW()
+);
