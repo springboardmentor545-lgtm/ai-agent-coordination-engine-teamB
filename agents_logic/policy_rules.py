@@ -44,14 +44,43 @@ def check_policy_rules(
     # Rule 2: Balance sufficiency (only working days count against balance)
     balance_ok = leave_balance >= requested_days
 
-    # Rule 3: Team conflict (30% threshold) — only count conflicts on actual working days
-    conflicting_employees = len(set(
-        entry["employee_id"] for entry in team_calendar
+    # Rule 3: Team conflict (30% threshold), computed both overall AND per-day
+    valid_conflicts = [
+        entry for entry in team_calendar
         if entry["leave_date"] not in holiday_set
         and datetime.strptime(entry["leave_date"], "%Y-%m-%d").date().weekday() < 5
-    ))
+    ]
+
+    conflicting_employees = len(set(entry["employee_id"] for entry in valid_conflicts))
     conflict_ratio = conflicting_employees / department_size if department_size > 0 else 0
     team_conflict = conflict_ratio > 0.30
+
+    conflicts_by_day = {}
+    for entry in valid_conflicts:
+        day = entry["leave_date"]
+        conflicts_by_day.setdefault(day, set()).add(entry["employee_id"])
+
+    day_by_day_status = []
+    current = s_date
+    while current <= e_date:
+        day_str = current.isoformat()
+        is_weekend = current.weekday() >= 5
+        is_holiday = day_str in holiday_set
+        if is_weekend or is_holiday:
+            current += timedelta(days=1)
+            continue
+        day_conflict_count = len(conflicts_by_day.get(day_str, set()))
+        day_ratio = day_conflict_count / department_size if department_size > 0 else 0
+        day_by_day_status.append({
+            "date": day_str,
+            "conflicting_employees": day_conflict_count,
+            "conflict_ratio": round(day_ratio, 2),
+            "has_conflict": day_ratio > 0.30,
+        })
+        current += timedelta(days=1)
+
+    clean_days = [d["date"] for d in day_by_day_status if not d["has_conflict"]]
+    conflicting_days = [d["date"] for d in day_by_day_status if d["has_conflict"]]
 
     return {
         "total_calendar_days": total_calendar_days,
@@ -64,7 +93,11 @@ def check_policy_rules(
         "department_size": department_size,
         "conflict_ratio": round(conflict_ratio, 2),
         "team_conflict": team_conflict,
+        "day_by_day_status": day_by_day_status,
+        "clean_days": clean_days,
+        "conflicting_days": conflicting_days,
     }
+
 
 def compute_extension_delta(previous_start: str, previous_end: str, new_start: str, new_end: str):
     """
@@ -92,6 +125,7 @@ def compute_extension_delta(previous_start: str, previous_end: str, new_start: s
 
     # No new days -- fully contained within or identical to the existing approval
     return None, None
+
 
 def compute_cancellation(approved_start: str, approved_end: str, currently_cancelled: list, dates_to_cancel: list, holidays: set):
     """
