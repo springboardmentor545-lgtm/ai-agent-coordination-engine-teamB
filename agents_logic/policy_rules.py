@@ -92,3 +92,63 @@ def compute_extension_delta(previous_start: str, previous_end: str, new_start: s
 
     # No new days -- fully contained within or identical to the existing approval
     return None, None
+
+def compute_cancellation(approved_start: str, approved_end: str, currently_cancelled: list, dates_to_cancel: list, holidays: set):
+    """
+    Given an approved date range, dates already cancelled, and new dates the employee
+    wants to cancel, validate the request and compute the working days to credit back.
+
+    Returns a dict:
+      - valid: bool
+      - error: str or None
+      - updated_cancelled_dates: list of all cancelled dates (old + new), sorted
+      - working_days_credited: int (working days among the newly cancelled dates)
+      - remaining_dates: list of dates still active in the approved leave
+    """
+    a_start = datetime.strptime(approved_start, "%Y-%m-%d").date()
+    a_end = datetime.strptime(approved_end, "%Y-%m-%d").date()
+
+    all_approved_dates = []
+    current = a_start
+    while current <= a_end:
+        all_approved_dates.append(current.isoformat())
+        current += timedelta(days=1)
+
+    # Validate every requested cancellation date is actually part of the approved range
+    invalid_dates = [d for d in dates_to_cancel if d not in all_approved_dates]
+    if invalid_dates:
+        return {
+            "valid": False,
+            "error": f"These dates are not part of your approved leave ({approved_start} to {approved_end}): {invalid_dates}",
+            "updated_cancelled_dates": currently_cancelled,
+            "working_days_credited": 0,
+            "remaining_dates": [],
+        }
+
+    already_cancelled_again = [d for d in dates_to_cancel if d in currently_cancelled]
+    if already_cancelled_again:
+        return {
+            "valid": False,
+            "error": f"These dates were already cancelled previously: {already_cancelled_again}",
+            "updated_cancelled_dates": currently_cancelled,
+            "working_days_credited": 0,
+            "remaining_dates": [],
+        }
+
+    updated_cancelled = sorted(set(currently_cancelled) | set(dates_to_cancel))
+
+    # Only count working days (not weekends/holidays) toward balance credit
+    working_days_credited = sum(
+        1 for d in dates_to_cancel
+        if datetime.strptime(d, "%Y-%m-%d").date().weekday() < 5 and d not in holidays
+    )
+
+    remaining_dates = [d for d in all_approved_dates if d not in updated_cancelled]
+
+    return {
+        "valid": True,
+        "error": None,
+        "updated_cancelled_dates": updated_cancelled,
+        "working_days_credited": working_days_credited,
+        "remaining_dates": remaining_dates,
+    }
