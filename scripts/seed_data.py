@@ -14,6 +14,7 @@ def reset_and_seed():
     cursor.execute("DELETE FROM long_term_memory;")
     cursor.execute("DELETE FROM team_calendar;")
     cursor.execute("DELETE FROM leave_history;")
+    cursor.execute("DELETE FROM sessions;")
     cursor.execute("DELETE FROM employees;")
 
     # 2. Insert employees

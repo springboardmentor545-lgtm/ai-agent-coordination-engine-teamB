@@ -64,15 +64,22 @@ def coordinator_agent(state):
                         f"Your leave from {prev_start} to {prev_end} is already approved. "
                         f"Evaluating only the new portion: {delta_start} to {delta_end}."
                     )
-
-    # Deterministic lock: once a request has been escalated to a manager,
+    # Deterministic lock: once a request has been escalated or rejected,
     # do not allow further self-service modification within this conversation.
-    if not completed_steps and state.get("decision_outcome") == "ESCALATE":
-        locked_message = (
-            "Your previous leave request was escalated to your manager and is "
-            "pending their review. Please wait for their decision, or contact "
-            "them directly, rather than submitting a new or modified request."
-        )
+    if not completed_steps and state.get("decision_outcome") in ("ESCALATE", "REJECT"):
+        if state.get("decision_outcome") == "ESCALATE":
+            locked_message = (
+                "Your previous leave request was escalated to your manager and is "
+                "pending their review. Please wait for their decision, or contact "
+                "them directly, rather than submitting a new or modified request."
+            )
+        else:
+            locked_message = (
+                "Your previous leave request was rejected. This session is now closed. "
+                "If your circumstances have changed (e.g. your leave balance), please "
+                "start a new leave request."
+            )
+
         state["coordinator_decision"] = {
             "action": "finish",
             "next_agent": None,
