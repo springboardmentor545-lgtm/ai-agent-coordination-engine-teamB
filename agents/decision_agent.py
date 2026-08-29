@@ -1,3 +1,4 @@
+from db.queries import create_or_update_session
 from db.queries import save_long_term_memory, deduct_leave_balance, record_leave_history
 from agents.base_agent import Agent
 
@@ -60,6 +61,15 @@ def decision_agent(state):
             "end_date": state.get("end_date"),
             "summary": result,
         })
+
+        create_or_update_session(
+            thread_id=state.get("thread_id", "unknown"),
+            employee_id=state["employee_id"],
+            start_date=state.get("start_date"),
+            end_date=state.get("end_date"),
+            decision_outcome=outcome,
+            reason=state.get("fetched_data", {}).get("reason", "not specified"),
+        )
 
         # On approval, deduct the actual working days from balance and record history
         if outcome == "APPROVE":
