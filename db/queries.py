@@ -1,6 +1,7 @@
 import os
 import psycopg2
 from dotenv import load_dotenv
+import json as _json
 
 load_dotenv()
 DATABASE_URL = os.getenv("DATABASE_URL")
@@ -74,6 +75,7 @@ def get_team_calendar(department: str, start_date: str, end_date: str) -> list[d
         for r in rows
     ]
 
+
 def get_department_size(department: str) -> int:
     """Count total employees in a department (used for team-conflict % calculation)."""
     conn = get_connection()
@@ -86,8 +88,6 @@ def get_department_size(department: str) -> int:
     cursor.close()
     conn.close()
     return count
-
-import json as _json
 
 
 def save_long_term_memory(employee_id: str, key: str, value: dict) -> None:
@@ -124,6 +124,7 @@ def get_long_term_memory(employee_id: str, limit: int = 5) -> list[dict]:
         results.append({"key": key, "value": parsed_value, "updated_at": str(updated_at)})
     return results
 
+
 def get_holidays_in_range(start_date: str, end_date: str) -> list[str]:
     """Fetch official company holiday dates that fall within a given date range."""
     conn = get_connection()
@@ -136,6 +137,7 @@ def get_holidays_in_range(start_date: str, end_date: str) -> list[str]:
     cursor.close()
     conn.close()
     return [str(row[0]) for row in rows]
+
 
 def deduct_leave_balance(employee_id: str, days: int) -> None:
     """Deduct approved leave days from an employee's balance."""
@@ -161,6 +163,7 @@ def record_leave_history(employee_id: str, start_date: str, end_date: str, statu
     conn.commit()
     cursor.close()
     conn.close()
+
 
 def create_or_update_session(thread_id: str, employee_id: str, start_date: str, end_date: str, decision_outcome: str, reason: str) -> None:
     """Insert a new session record, or update it if the thread_id already exists
@@ -213,12 +216,13 @@ def get_sessions_for_employee(employee_id: str) -> list[dict]:
         for r in rows
     ]
 
+
 def get_session(thread_id: str) -> dict:
     """Fetch a single session's full details by thread_id."""
     conn = get_connection()
     cursor = conn.cursor()
     cursor.execute(
-        "SELECT thread_id, employee_id, start_date, end_date, decision_outcome, reason, cancelled_dates FROM sessions WHERE thread_id = %s;",
+        "SELECT thread_id, employee_id, start_date, end_date, decision_outcome, reason, cancelled_dates, extend_locked FROM sessions WHERE thread_id = %s;",
         (thread_id,)
     )
     row = cursor.fetchone()
@@ -236,6 +240,7 @@ def get_session(thread_id: str) -> dict:
         "decision_outcome": row[4],
         "reason": row[5],
         "cancelled_dates": row[6] if row[6] else [],
+        "extend_locked": row[7],
     }
 
 
@@ -259,6 +264,19 @@ def credit_leave_balance(employee_id: str, days: int) -> None:
     cursor.execute(
         "UPDATE employees SET leave_balance = leave_balance + %s WHERE employee_id = %s;",
         (days, employee_id)
+    )
+    conn.commit()
+    cursor.close()
+    conn.close()
+
+
+def lock_extend_for_session(thread_id: str) -> None:
+    """Mark a session as no longer eligible for further extend attempts."""
+    conn = get_connection()
+    cursor = conn.cursor()
+    cursor.execute(
+        "UPDATE sessions SET extend_locked = TRUE, updated_at = NOW() WHERE thread_id = %s;",
+        (thread_id,)
     )
     conn.commit()
     cursor.close()
