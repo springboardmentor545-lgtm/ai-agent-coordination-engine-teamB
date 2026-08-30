@@ -169,5 +169,8 @@ def extend_leave(thread_id: str, request: ExtendRequest, employee_id: str = Depe
     return result
 
 @app.post("/sessions/{thread_id}/resolve-mixed")
-def resolve_mixed(thread_id: str, request: MixedChoiceRequest):
-    return resolve_mixed_request(thread_id, request.choice)
+def resolve_mixed(thread_id: str, request: MixedChoiceRequest, employee_id: str = Depends(get_current_employee)):
+    result = resolve_mixed_request(thread_id, request.choice, employee_id)
+    if result.get("error") == "You do not have permission to modify this session.":
+        return JSONResponse(status_code=403, content=result)
+    return result

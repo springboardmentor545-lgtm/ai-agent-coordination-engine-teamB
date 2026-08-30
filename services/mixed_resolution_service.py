@@ -2,7 +2,7 @@ from graph.leave_approval_graph import leave_approval_graph
 from db.queries import create_or_update_session, deduct_leave_balance, record_leave_history, save_long_term_memory
 
 
-def resolve_mixed_request(thread_id: str, choice: str) -> dict:
+def resolve_mixed_request(thread_id: str, choice: str, requesting_employee_id: str) -> dict:
     """
     Resolve a pending mixed-conflict choice for a session.
     choice must be 'partial' or 'escalate_all'.
@@ -14,8 +14,11 @@ def resolve_mixed_request(thread_id: str, choice: str) -> dict:
     if not state.get("mixed_choice_pending"):
         return {"error": "No pending mixed-conflict choice found for this session."}
 
-    split_info = state.get("mixed_split_info")
     employee_id = state["employee_id"]
+    if employee_id != requesting_employee_id:
+        return {"error": "You do not have permission to modify this session."}
+
+    split_info = state.get("mixed_split_info")
     reason = state.get("fetched_data", {}).get("reason", "not specified")
     clean_days = split_info["clean_days"]
     conflicting_days = split_info["conflicting_days"]
