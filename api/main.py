@@ -14,11 +14,11 @@ from auth.security import verify_password, create_access_token
 from auth.dependencies import get_current_employee
 from fastapi import Depends
 from graph.leave_approval_graph import leave_approval_graph
-
-from graph.leave_approval_graph import leave_approval_graph
+from fastapi.staticfiles import StaticFiles
 
 app = FastAPI(title="Enterprise Workflow Platform with Decision Automation System - Milestone 3")
 
+app.mount("/app", StaticFiles(directory="frontend", html=True), name="frontend")
 
 @app.exception_handler(RequestValidationError)
 async def validation_exception_handler(request: Request, exc: RequestValidationError):

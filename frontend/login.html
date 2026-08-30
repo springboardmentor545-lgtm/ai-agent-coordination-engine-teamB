@@ -1,0 +1,25 @@
+<!DOCTYPE html>
+<html>
+<head>
+  <title>Login - Leave Approval System</title>
+  <link rel="stylesheet" href="css/style.css">
+</head>
+<body>
+  <div class="container">
+    <h1>Employee Login</h1>
+    <form id="login-form">
+      <label for="employee_id">Employee ID</label>
+      <input type="text" id="employee_id" required>
+
+      <label for="password">Password</label>
+      <input type="password" id="password" required>
+
+      <button type="submit">Log In</button>
+    </form>
+    <p id="error-message" class="error"></p>
+  </div>
+
+  <script src="js/api.js"></script>
+  <script src="js/login.js"></script>
+</body>
+</html>
