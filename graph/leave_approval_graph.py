@@ -1,6 +1,7 @@
 from typing import TypedDict, Optional
 from langgraph.graph import StateGraph, END
-from langgraph.checkpoint.memory import MemorySaver
+from langgraph.checkpoint.postgres import PostgresSaver
+import os
 
 from agents.coordinator_agent import coordinator_agent
 from agents.planning_agent import planning_agent
@@ -29,6 +30,8 @@ class LeaveApprovalState(TypedDict, total=False):
     final_response: str
     delta_applied: bool
     delta_note: str
+    mixed_choice_pending: bool
+    mixed_split_info: dict
 
 
 def route_from_coordinator(state):
@@ -70,5 +73,9 @@ builder.add_edge("research", "coordinator")
 builder.add_edge("analysis", "coordinator")
 builder.add_edge("decision", "coordinator")
 
-checkpointer = MemorySaver()
+DATABASE_URL = os.getenv("DATABASE_URL")
+_checkpointer_cm = PostgresSaver.from_conn_string(DATABASE_URL)
+checkpointer = _checkpointer_cm.__enter__()
+checkpointer.setup()
+
 leave_approval_graph = builder.compile(checkpointer=checkpointer)
