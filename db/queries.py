@@ -34,6 +34,21 @@ def get_leave_balance(employee_id: str) -> dict:
         "leave_balance": row[4],
     }
 
+def get_employee_password_hash(employee_id: str) -> str | None:
+    """Fetch an employee's stored bcrypt password hash, or None if the employee doesn't exist."""
+    conn = get_connection()
+    cursor = conn.cursor()
+    cursor.execute(
+        "SELECT password_hash FROM employees WHERE employee_id = %s;",
+        (employee_id,)
+    )
+    row = cursor.fetchone()
+    cursor.close()
+    conn.close()
+
+    if row is None:
+        return None
+    return row[0]
 
 def get_leave_history(employee_id: str) -> list[dict]:
     """Fetch past leave records for an employee."""

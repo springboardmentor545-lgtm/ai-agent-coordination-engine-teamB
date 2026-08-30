@@ -9,7 +9,10 @@ from fastapi.exceptions import RequestValidationError
 from fastapi.responses import JSONResponse
 from pydantic import BaseModel
 from typing import Optional
-from db.queries import save_long_term_memory
+from db.queries import save_long_term_memory, get_employee_password_hash
+from auth.security import verify_password, create_access_token
+
+from graph.leave_approval_graph import leave_approval_graph
 
 from graph.leave_approval_graph import leave_approval_graph
 
@@ -52,10 +55,30 @@ class ExtendRequest(BaseModel):
 class MixedChoiceRequest(BaseModel):
     choice: str  # "partial" or "escalate_all"
 
+class LoginRequest(BaseModel):
+    employee_id: str
+    password: str
+
+class LoginResponse(BaseModel):
+    access_token: str
+    token_type: str = "bearer"
+
 @app.get("/")
 def root():
     return {"message": "Leave Approval multi-agent system is running. Visit /docs to test it."}
 
+
+@app.post("/login", response_model=LoginResponse)
+def login(request: LoginRequest):
+    stored_hash = get_employee_password_hash(request.employee_id)
+    if stored_hash is None:
+        return JSONResponse(status_code=401, content={"error": "Invalid employee ID or password."})
+
+    if not verify_password(request.password, stored_hash):
+        return JSONResponse(status_code=401, content={"error": "Invalid employee ID or password."})
+
+    token = create_access_token(request.employee_id)
+    return LoginResponse(access_token=token)
 
 @app.post("/leave-request", response_model=LeaveResponse)
 def submit_leave_request(request: LeaveRequest):
