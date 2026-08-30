@@ -118,10 +118,12 @@ def list_sessions(employee_id: str = Depends(get_current_employee)):
     return {"employee_id": employee_id, "sessions": sessions}
 
 @app.post("/sessions/{thread_id}/cancel")
-def cancel_leave(thread_id: str, request: CancelRequest):
+def cancel_leave(thread_id: str, request: CancelRequest, employee_id: str = Depends(get_current_employee)):
     session = get_session(thread_id)
     if session is None:
         return {"error": "Session not found."}
+    if session["employee_id"] != employee_id:
+        return JSONResponse(status_code=403, content={"error": "You do not have permission to modify this session."})
     if session["decision_outcome"] != "APPROVE":
         return {"error": "Only approved leave sessions can be cancelled."}
 
