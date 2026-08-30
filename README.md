@@ -1,51 +1,158 @@
 # Development of Enterprise Workflow Platform with Decision Automation System
 
+An AI-powered multi-agent decision automation system built using **LangChain, LangGraph, Groq, FastAPI, PostgreSQL, and external tools**.
+
 ## Milestone 1 - Agent Foundation Development
 
 ### Setup
-1. Clone the repository and switch to this branch
-2. Create virtual environment: `python -m venv venv`
-3. Activate: `venv\Scripts\activate`
-4. Install dependencies: `pip install -r requirements.txt`
-5. Copy `.env.example` to `.env` and add your own Groq API key:
-   - Get a free key at https://console.groq.com -> API Keys
-   - Create a `.env` file with: `GROQ_API_KEY=your_actual_key_here`
+
+1. Create virtual environment: `python -m venv venv`
+2. Activate: `venv\Scripts\activate`
+3. Install dependencies: `pip install -r requirements.txt`
+4. Create a `.env` file and add your Groq API key:
+
+```env
+GROQ_API_KEY=your_groq_api_key_here
+```
 
 ### Run
+
+```bash
 uvicorn api.main:app --reload
+```
 
 Visit `http://127.0.0.1:8000/docs` to test.
 
 ### What's built
-- Basic `Agent` class (`agents/base_agent.py`) wrapping a LangChain-Groq LLM connection
-- FastAPI endpoint `POST /ask` that accepts a question and returns the agent's response
-- Pydantic request/response models for validation
 
-### Testing
-Tested via Swagger UI with multiple cases: normal questions, short/vague input, empty strings, long multi-part questions, missing fields, and wrong data types. Invalid input (missing/wrong-type fields) is correctly rejected with 422 errors before reaching the LLM.
+* Basic LangChain Agent using Groq LLM
+* FastAPI `POST /ask` endpoint
+* Pydantic request/response validation
 
-## Milestone 2 – Tool Integration & Intelligent Action Execution
+## Milestone 2 - Tool Integration & Intelligent Action Execution
 
 ### What's new
-- Agent upgraded from a plain LLM wrapper to a **tool-calling agent** using LangGraph's `create_react_agent`
-- The agent itself decides whether a question needs a tool or can be answered directly from the LLM's own knowledge — this decision is not hardcoded
-- **Weather tool** (`tools/weather_tool.py`) — fetches live weather for a city using the free Open-Meteo API (geocoding + current weather, no API key required)
-- **Calculator tool** (`tools/calculator_tool.py`) — safely evaluates basic math expressions, with character validation to prevent unsafe input reaching Python's `eval()`
-- Both tools built and tested standalone before being wired into the agent
 
-### Tool-calling behavior (tested)
-- Weather questions with a valid city → tool is called, live data returned
-- Weather questions with an invalid/unrecognized city → tool returns a graceful error, LLM relays it naturally instead of crashing
-- Weather questions with no city mentioned → agent asks for clarification instead of guessing a city (fixed via a system instruction after initial testing revealed this gap)
-- Math questions → calculator tool is called, correct result returned
-- General knowledge questions → answered directly by the LLM, no tool called
-- Verified via message-trace logging that the LLM's tool-call decision (empty content + `tool_calls` populated) is genuinely happening, not just guessed from the final answer
+* Weather Tool for retrieving current weather information using WeatherAPI
+* Calculator Tool for basic mathematical calculations
+* Tool selection and execution through the agent
+* Input validation and error handling for tool operations
 
-### Validation & error handling
-- FastAPI/Pydantic still rejects malformed requests (missing `question` field, wrong data type) before the agent or LLM is ever called
-- Added a custom exception handler so invalid requests return a clear, friendly message instead of raw technical validation errors, while still returning proper `422` status codes
-- Weather tool handles: city not found, network timeouts, unexpected API responses
-- Calculator tool handles: division by zero, invalid expressions, and blocks unsafe characters before evaluation
+### Setup
 
-### Known limitation
-- Ambiguous city names (e.g., "Bangalore") can occasionally resolve to an unexpected location via the geocoding API (e.g., a same-named town in another country). The agent has been observed self-correcting using conversational context, but this isn't guaranteed for every ambiguous name.
+Add the WeatherAPI key to `.env`:
+
+```env
+WEATHER_API_KEY=your_weather_api_key_here
+```
+
+The WeatherAPI key can be obtained from the WeatherAPI website.
+
+## Milestone 3 - Multi-Agent Coordination, Decision Automation & Memory
+
+### What's new
+
+* Multi-agent workflow using **LangGraph**
+* Planning Agent for breaking requests into tasks
+* Research Agent for collecting information and using available tools
+* Analysis Agent for analyzing research results
+* Decision Agent for generating the final response
+* Shared state between agents
+* Short-term and long-term memory using **PostgreSQL**
+* Error handling and validation between workflow stages
+* Simple web frontend for interacting with the system
+
+### Workflow
+
+```text
+User
+  ↓
+FastAPI
+  ↓
+Planning Agent
+  ↓
+Research Agent
+  ↓
+Analysis Agent
+  ↓
+Decision Agent
+  ↓
+Final Response
+```
+
+### PostgreSQL Setup
+
+PostgreSQL is required for Milestone 3 memory functionality.
+
+1. Install PostgreSQL and ensure the PostgreSQL service is running.
+2. Create a database named `ai_agent_db`.
+3. Add the database connection details to `.env`:
+
+```env
+DATABASE_URL=postgresql://postgres:your_postgres_password@localhost:5432/ai_agent_db
+```
+
+4. Initialize the database tables:
+
+```bash
+python memory/init_db.py
+```
+
+### Complete `.env`
+
+```env
+GROQ_API_KEY=your_groq_api_key_here
+WEATHER_API_KEY=your_weather_api_key_here
+DATABASE_URL=postgresql://postgres:your_postgres_password@localhost:5432/ai_agent_db
+```
+
+### Frontend
+
+After starting the FastAPI server, open:
+
+```text
+Frontend/index.html
+```
+
+The frontend communicates with the FastAPI `/ask` endpoint and supports session-based conversations.
+
+### Project Structure
+
+```text
+ai-agent-coordination-engine-teamB/
+├── agents/
+│   ├── analysis_agent.py
+│   ├── decision_agent.py
+│   ├── planning_agent.py
+│   ├── research_agent.py
+│   ├── state.py
+│   └── workflow.py
+├── api/
+│   └── main.py
+├── config/
+│   ├── database.py
+│   └── settings.py
+├── memory/
+│   ├── database_models.py
+│   ├── init_db.py
+│   ├── long_term_memory.py
+│   └── short_term_memory.py
+├── tools/
+│   ├── calculator_tool.py
+│   └── weather_tool.py
+├── Frontend/
+│   ├── index.html
+│   ├── script.js
+│   └── style.css
+├── test_memory.py
+├── .env.example
+├── .gitignore
+├── README.md
+└── requirements.txt
+```
+
+### Technologies
+
+**Python · LangChain · LangGraph · Groq · FastAPI · PostgreSQL · SQLAlchemy · Pydantic · WeatherAPI · Requests · Git/GitHub**
+
+> **Security:** API keys and database credentials are stored locally in `.env`. The `.env` file is excluded from Git; only `.env.example` is committed.

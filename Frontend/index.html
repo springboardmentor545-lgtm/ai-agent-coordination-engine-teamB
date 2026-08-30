@@ -1,0 +1,66 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>AI Agent Coordination & Decision Engine</title>
+    <link rel="stylesheet" href="style.css">
+</head>
+
+<body>
+
+    <div class="container">
+
+        <header>
+            <h1>AI Agent Coordination & Decision Engine</h1>
+            <p>Multi-Agent AI System with Memory and Tool Integration</p>
+        </header>
+
+        <section class="card">
+
+            <label for="sessionId">Session ID</label>
+
+            <div class="session-row">
+                <input
+                    type="text"
+                    id="sessionId"
+                    value="vaishnavi-demo"
+                    placeholder="Enter session ID"
+                >
+
+                <button id="newSessionBtn">New Session</button>
+            </div>
+
+            <label for="question">Ask your question</label>
+
+            <textarea
+                id="question"
+                placeholder="Example: What is the weather in Hyderabad?"
+            ></textarea>
+
+            <button id="askBtn" class="ask-button">
+                Ask Agent
+            </button>
+
+        </section>
+
+        <section class="card response-card">
+
+            <h2>Agent Response</h2>
+
+            <div id="loading" class="loading hidden">
+                Processing your request...
+            </div>
+
+            <div id="response" class="response">
+                Your response will appear here.
+            </div>
+
+        </section>
+
+    </div>
+
+    <script src="script.js"></script>
+
+</body>
+</html>
