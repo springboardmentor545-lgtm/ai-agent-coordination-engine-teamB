@@ -113,7 +113,7 @@ def submit_leave_request(request: LeaveRequest, employee_id: str = Depends(get_c
     )
 
 @app.get("/sessions")
-def list_sessions(employee_id: str):
+def list_sessions(employee_id: str = Depends(get_current_employee)):
     sessions = get_sessions_for_employee(employee_id)
     return {"employee_id": employee_id, "sessions": sessions}
 
