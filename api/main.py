@@ -35,9 +35,11 @@ async def validation_exception_handler(request: Request, exc: RequestValidationE
     )
 
 class LeaveRequest(BaseModel):
-    user_query: str
+    user_query: Optional[str] = None
+    start_date: Optional[str] = None
+    end_date: Optional[str] = None
+    reason: Optional[str] = None
     thread_id: Optional[str] = None
-
 
 class LeaveResponse(BaseModel):
     thread_id: str
@@ -84,14 +86,37 @@ def login(request: LoginRequest):
 def submit_leave_request(request: LeaveRequest, employee_id: str = Depends(get_current_employee)):
     thread_id = request.thread_id or str(uuid.uuid4())
 
-    initial_state = {
-        "user_query": request.user_query,
-        "employee_id": employee_id,
-        "thread_id": thread_id,
-        "completed_steps": [],
-        "retry_count": {},
-        "error": None,
-    }
+    structured_mode = request.start_date is not None and request.end_date is not None
+
+    if not structured_mode and not request.user_query:
+        return JSONResponse(
+            status_code=422,
+            content={"error": "Provide either start_date and end_date, or a free-text user_query."}
+        )
+
+    if structured_mode:
+        reason = request.reason or "not specified"
+        initial_state = {
+            "user_query": f"Leave request from {request.start_date} to {request.end_date}. Reason: {reason}.",
+            "structured_request": True,
+            "start_date": request.start_date,
+            "end_date": request.end_date,
+            "fetched_data": {"reason": reason},
+            "employee_id": employee_id,
+            "thread_id": thread_id,
+            "completed_steps": [],
+            "retry_count": {},
+            "error": None,
+        }
+    else:
+        initial_state = {
+            "user_query": request.user_query,
+            "employee_id": employee_id,
+            "thread_id": thread_id,
+            "completed_steps": [],
+            "retry_count": {},
+            "error": None,
+        }
 
     config = {"configurable": {"thread_id": thread_id}, "recursion_limit": 25}
 
@@ -116,6 +141,11 @@ def submit_leave_request(request: LeaveRequest, employee_id: str = Depends(get_c
 def list_sessions(employee_id: str = Depends(get_current_employee)):
     sessions = get_sessions_for_employee(employee_id)
     return {"employee_id": employee_id, "sessions": sessions}
+
+@app.get("/holidays")
+def list_holidays(start_date: str, end_date: str, employee_id: str = Depends(get_current_employee)):
+    holidays = get_holidays_in_range(start_date, end_date)
+    return {"holidays": holidays}
 
 @app.post("/sessions/{thread_id}/cancel")
 def cancel_leave(thread_id: str, request: CancelRequest, employee_id: str = Depends(get_current_employee)):

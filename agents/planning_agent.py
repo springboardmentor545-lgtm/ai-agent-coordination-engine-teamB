@@ -31,6 +31,24 @@ def planning_agent(state):
     try:
         today = date.today().isoformat()
 
+        # Fast path: the frontend calendar already supplied trusted, structured
+        # start_date/end_date/reason directly. Skip the LLM extraction entirely —
+        # there is nothing ambiguous left to parse, so calling the LLM here would
+        # only add latency and cost with no benefit.
+        if state.get("structured_request"):
+            policy_text = load_policy_document()
+            state["request_date"] = today
+            state["plan"] = "Structured request: dates and reason provided directly by the frontend calendar; LLM date extraction skipped."
+            state["fetched_data"] = {
+                "reason": state.get("fetched_data", {}).get("reason", "not specified"),
+                "policy_document": policy_text,
+            }
+            state["completed_steps"] = state.get("completed_steps", []) + ["planning"]
+
+            if not state.get("start_date") or not state.get("end_date"):
+                state["error"] = "planning: Structured request was missing start_date or end_date."
+            return state
+
         existing_context = ""
         if state.get("start_date") or state.get("end_date"):
             existing_context = (
