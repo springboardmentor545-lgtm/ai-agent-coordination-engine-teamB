@@ -18,13 +18,17 @@ app = FastAPI(title="Enterprise Workflow Platform with Decision Automation Syste
 
 @app.exception_handler(RequestValidationError)
 async def validation_exception_handler(request: Request, exc: RequestValidationError):
+    problems = []
+    for err in exc.errors():
+        field = ".".join(str(part) for part in err["loc"] if part != "body")
+        problems.append(f"{field} ({err['msg']})")
+    detail = "; ".join(problems) if problems else "Request could not be validated."
     return JSONResponse(
         status_code=422,
         content={
-            "error": "Invalid request. Make sure 'employee_id' and 'user_query' are included and are text."
+            "error": f"Invalid request. Problem with: {detail}"
         }
     )
-
 
 class LeaveRequest(BaseModel):
     employee_id: str
@@ -42,7 +46,8 @@ class CancelRequest(BaseModel):
     dates_to_cancel: list[str]
 
 class ExtendRequest(BaseModel):
-    date: str
+    start_date: str
+    end_date: str
 
 class MixedChoiceRequest(BaseModel):
     choice: str  # "partial" or "escalate_all"
@@ -131,7 +136,9 @@ def cancel_leave(thread_id: str, request: CancelRequest):
 
 @app.post("/sessions/{thread_id}/extend")
 def extend_leave(thread_id: str, request: ExtendRequest):
-    return process_extension(thread_id, request.date)
+    if request.start_date != request.end_date:
+        return {"error": "Extensions are limited to a single day. Please select just one date on the calendar."}
+    return process_extension(thread_id, request.start_date)
 
 @app.post("/sessions/{thread_id}/resolve-mixed")
 def resolve_mixed(thread_id: str, request: MixedChoiceRequest):
