@@ -2,11 +2,14 @@ import uuid
 from db.queries import get_session, update_session_cancelled_dates, credit_leave_balance, get_holidays_in_range
 from agents_logic.policy_rules import compute_cancellation
 from db.queries import get_sessions_for_employee
+from services.mixed_resolution_service import resolve_mixed_request
+from services.extend_service import process_extension
 from fastapi import FastAPI, Request
 from fastapi.exceptions import RequestValidationError
 from fastapi.responses import JSONResponse
 from pydantic import BaseModel
 from typing import Optional
+from db.queries import save_long_term_memory
 
 from graph.leave_approval_graph import leave_approval_graph
 
@@ -38,6 +41,11 @@ class LeaveResponse(BaseModel):
 class CancelRequest(BaseModel):
     dates_to_cancel: list[str]
 
+class ExtendRequest(BaseModel):
+    date: str
+
+class MixedChoiceRequest(BaseModel):
+    choice: str  # "partial" or "escalate_all"
 
 @app.get("/")
 def root():
@@ -106,6 +114,13 @@ def cancel_leave(thread_id: str, request: CancelRequest):
     if result["working_days_credited"] > 0:
         credit_leave_balance(session["employee_id"], result["working_days_credited"])
 
+    save_long_term_memory(session["employee_id"], "leave_decision", {
+        "decision": "APPROVE",
+        "start_date": session["start_date"],
+        "end_date": session["end_date"],
+        "summary": f"Partially cancelled: {request.dates_to_cancel} removed. Remaining active dates: {result['remaining_dates']}.",
+    })
+
     return {
         "thread_id": thread_id,
         "cancelled_dates": result["updated_cancelled_dates"],
@@ -113,3 +128,11 @@ def cancel_leave(thread_id: str, request: CancelRequest):
         "working_days_credited": result["working_days_credited"],
         "message": f"Successfully cancelled {request.dates_to_cancel}. {result['working_days_credited']} day(s) credited back to your leave balance.",
     }
+
+@app.post("/sessions/{thread_id}/extend")
+def extend_leave(thread_id: str, request: ExtendRequest):
+    return process_extension(thread_id, request.date)
+
+@app.post("/sessions/{thread_id}/resolve-mixed")
+def resolve_mixed(thread_id: str, request: MixedChoiceRequest):
+    return resolve_mixed_request(thread_id, request.choice)
