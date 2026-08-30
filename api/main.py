@@ -1,19 +1,18 @@
 from fastapi import FastAPI
 from pydantic import BaseModel
-from agents.base_agent import Agent
 
-app = FastAPI(title="AI Agent Coordination & Decision Engine - Milestone 1")
-
-# Create one instance of our agent when the app starts
-planning_agent = Agent(name="Planning Agent")
+from workflow import app as workflow_app
 
 
-# Pydantic model defines the shape of the incoming request
+app = FastAPI(
+    title="Development of Enterprise Workflow Platform with Decision Automation System"
+)
+
+
 class PromptRequest(BaseModel):
     question: str
 
 
-# Pydantic model defines the shape of the outgoing response
 class PromptResponse(BaseModel):
     agent_name: str
     response: str
@@ -21,10 +20,19 @@ class PromptResponse(BaseModel):
 
 @app.get("/")
 def root():
-    return {"message": "AI Agent is running. Visit /docs to test it."}
+    return {
+        "message": "Multi-Agent AI System is running. Visit /docs to test it."
+    }
 
 
 @app.post("/ask", response_model=PromptResponse)
 def ask_agent(request: PromptRequest):
-    answer = planning_agent.think(request.question)
-    return PromptResponse(agent_name=planning_agent.name, response=answer)
+
+    result = workflow_app.invoke({
+        "user_query": request.question
+    })
+
+    return PromptResponse(
+        agent_name="Multi-Agent System",
+        response=result["final_decision"]
+    )

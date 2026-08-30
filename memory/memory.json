@@ -1,0 +1,38 @@
+[
+    {
+        "user_query": "What is my project?",
+        "response": "Development of Enterprise Workflow Platform with Decision Automation System"
+    },
+    {
+        "user_query": "Convert 100 USD to INR",
+        "response": "100\u202fUSD is approximately 9,539\u202fINR."
+    },
+    {
+        "user_query": "Convert 100 USD to INR",
+        "response": "100\u202fUSD is equivalent to 9,539\u202fINR."
+    },
+    {
+        "user_query": "Convert 100 USD to INR",
+        "response": "100\u202fUSD is approximately\u202f9,539\u202fINR."
+    },
+    {
+        "user_query": "Convert 100 USD to INR",
+        "response": "$100.00 USD is approximately \u20b99,539 INR."
+    },
+    {
+        "user_query": "Convert 100 USD to INR",
+        "response": "100\u202fUSD \u2248\u202f9,539\u202fINR."
+    },
+    {
+        "user_query": "Convert 100 USD to INR",
+        "response": "$100\u202fUSD is approximately \u20b99,539.00\u202fINR."
+    },
+    {
+        "user_query": "Convert 100 USD to INR",
+        "response": "100\u202fUSD is approximately\u202f9,539\u202fINR."
+    },
+    {
+        "user_query": "Convert 100 USD to INR",
+        "response": "100\u202fUSD is approximately\u202f9,539\u202fINR."
+    }
+]

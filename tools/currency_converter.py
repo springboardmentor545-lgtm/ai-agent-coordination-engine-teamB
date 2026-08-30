@@ -1,24 +1,28 @@
-import requests
 from langchain_core.tools import tool
+import requests
 
 
 @tool
-def currency_converter(amount: float, from_currency: str, to_currency: str) -> str:
+def currency_converter(
+    amount: float,
+    from_currency: str,
+    to_currency: str
+) -> str:
     """
-    Convert an amount from one currency to another using an external API.
+    Convert an amount from one currency to another.
+    Uses an external API when available, with a fallback rate for demo use.
     """
 
-    # Validate amount
     if amount <= 0:
         return "Error: Amount must be greater than 0."
 
-    # Validate currency codes
     from_currency = from_currency.upper().strip()
     to_currency = to_currency.upper().strip()
 
     if len(from_currency) != 3 or len(to_currency) != 3:
         return "Error: Currency codes must be 3 letters, such as USD or INR."
 
+    # Try external API first
     try:
         url = (
             f"https://api.frankfurter.app/latest"
@@ -27,28 +31,40 @@ def currency_converter(amount: float, from_currency: str, to_currency: str) -> s
             f"&to={to_currency}"
         )
 
-        response = requests.get(url, timeout=10)
+        response = requests.get(url, timeout=5)
 
-        if response.status_code != 200:
-            return "Error: Currency API request failed."
+        if response.status_code == 200:
+            data = response.json()
 
-        data = response.json()
+            if "rates" in data and to_currency in data["rates"]:
+                converted_amount = data["rates"][to_currency]
 
-        if "rates" not in data or to_currency not in data["rates"]:
-            return f"Error: Unable to convert {from_currency} to {to_currency}."
+                return (
+                    f"{amount} {from_currency} = "
+                    f"{converted_amount} {to_currency}"
+                )
 
-        converted_amount = data["rates"][to_currency]
+    except requests.exceptions.RequestException:
+        pass
+
+    # Fallback rate for reliable demonstration
+    fallback_rates = {
+        ("USD", "INR"): 83.0,
+        ("INR", "USD"): 1 / 83.0
+    }
+
+    key = (from_currency, to_currency)
+
+    if key in fallback_rates:
+        converted_amount = amount * fallback_rates[key]
 
         return (
             f"{amount} {from_currency} = "
-            f"{converted_amount} {to_currency}"
+            f"{round(converted_amount, 2)} {to_currency} "
+            f"(demo fallback rate)"
         )
 
-    except requests.exceptions.Timeout:
-        return "Error: Currency API request timed out."
-
-    except requests.exceptions.RequestException:
-        return "Error: Unable to connect to the currency API."
-
-    except Exception as e:
-        return f"Error: Unexpected error occurred: {str(e)}"
+    return (
+        f"Error: Unable to convert {from_currency} to "
+        f"{to_currency} because the currency API is unavailable."
+    )
