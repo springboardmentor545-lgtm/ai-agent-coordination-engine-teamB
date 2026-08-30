@@ -1,5 +1,6 @@
 import os
 import psycopg2
+import bcrypt
 from dotenv import load_dotenv
 from datetime import date, timedelta
 
@@ -18,20 +19,27 @@ def reset_and_seed():
     cursor.execute("DELETE FROM employees;")
 
     # 2. Insert employees
+    # Every seeded employee gets the same test password ("password123"), but each
+    # gets its own independent bcrypt.hashpw() call, so each hash has its own random
+    # salt and the stored hashes genuinely differ, even though the plaintext is identical.
+    def hash_test_password():
+        return bcrypt.hashpw(b"password123", bcrypt.gensalt()).decode("utf-8")
+
     employees = [
-        ("EMP1001", "Mahi Joshi", "Engineering", "EMP1006", 18),
-        ("EMP1002", "Sagar Mehta", "Engineering", "EMP1006", 20),
-        ("EMP1003", "Radha Kulkarni", "Engineering", "EMP1006", 15),
-        ("EMP1004", "Suhani Mishra", "Marketing", "EMP1007", 2),
-        ("EMP1005", "Kartik Sharma", "Marketing", "EMP1007", 20),
-        ("EMP1006", "Anjali Verma", "Engineering", None, 20),
-        ("EMP1007", "Suhani Pande", "Marketing", None, 20),
-        ("EMP1008", "Raj Deshmukh", "Engineering", "EMP1006", 20),
+        ("EMP1001", "Mahi Joshi", "Engineering", "EMP1006", 18, hash_test_password()),
+        ("EMP1002", "Sagar Mehta", "Engineering", "EMP1006", 20, hash_test_password()),
+        ("EMP1003", "Radha Kulkarni", "Engineering", "EMP1006", 15, hash_test_password()),
+        ("EMP1004", "Suhani Mishra", "Marketing", "EMP1007", 2, hash_test_password()),
+        ("EMP1005", "Kartik Sharma", "Marketing", "EMP1007", 20, hash_test_password()),
+        ("EMP1006", "Anjali Verma", "Engineering", None, 20, hash_test_password()),
+        ("EMP1007", "Suhani Pande", "Marketing", None, 20, hash_test_password()),
+        ("EMP1008", "Raj Deshmukh", "Engineering", "EMP1006", 20, hash_test_password()),
     ]
     cursor.executemany(
-        "INSERT INTO employees (employee_id, name, department, manager_id, leave_balance) VALUES (%s, %s, %s, %s, %s);",
+        "INSERT INTO employees (employee_id, name, department, manager_id, leave_balance, password_hash) VALUES (%s, %s, %s, %s, %s, %s);",
         employees
-    )
+    )    
+
 
     # 3. Insert some leave history (past approved leaves)
     leave_history = [
