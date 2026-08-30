@@ -11,7 +11,8 @@ from pydantic import BaseModel
 from typing import Optional
 from db.queries import save_long_term_memory, get_employee_password_hash
 from auth.security import verify_password, create_access_token
-
+from auth.dependencies import get_current_employee
+from fastapi import Depends
 from graph.leave_approval_graph import leave_approval_graph
 
 from graph.leave_approval_graph import leave_approval_graph
@@ -34,7 +35,6 @@ async def validation_exception_handler(request: Request, exc: RequestValidationE
     )
 
 class LeaveRequest(BaseModel):
-    employee_id: str
     user_query: str
     thread_id: Optional[str] = None
 
@@ -81,12 +81,12 @@ def login(request: LoginRequest):
     return LoginResponse(access_token=token)
 
 @app.post("/leave-request", response_model=LeaveResponse)
-def submit_leave_request(request: LeaveRequest):
+def submit_leave_request(request: LeaveRequest, employee_id: str = Depends(get_current_employee)):
     thread_id = request.thread_id or str(uuid.uuid4())
 
     initial_state = {
         "user_query": request.user_query,
-        "employee_id": request.employee_id,
+        "employee_id": employee_id,
         "thread_id": thread_id,
         "completed_steps": [],
         "retry_count": {},
