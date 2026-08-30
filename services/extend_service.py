@@ -7,7 +7,7 @@ from db.queries import get_session, create_or_update_session, deduct_leave_balan
 from db.queries import lock_extend_for_session
 
 
-def process_extension(thread_id: str, new_date: str) -> dict:
+def process_extension(thread_id: str, new_date: str, employee_id: str) -> dict:
     """
     Validate and evaluate a request to extend an already-approved leave session
     by exactly one day, either immediately before or immediately after the
@@ -16,11 +16,12 @@ def process_extension(thread_id: str, new_date: str) -> dict:
     session = get_session(thread_id)
     if session is None:
         return {"error": "Session not found."}
+    if session["employee_id"] != employee_id:
+        return {"error": "You do not have permission to modify this session."}
     if session["decision_outcome"] != "APPROVE":
         return {"error": "Only approved leave sessions can be extended."}
     if session.get("extend_locked"):
         return {"error": "Extension is no longer available for this session. You can still cancel part or all of your approved leave."}
-
     is_valid, error_message, new_range_start, new_range_end = validate_single_day_extension(
         session["start_date"], session["end_date"], new_date
     )

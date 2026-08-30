@@ -158,10 +158,13 @@ def cancel_leave(thread_id: str, request: CancelRequest):
     }
 
 @app.post("/sessions/{thread_id}/extend")
-def extend_leave(thread_id: str, request: ExtendRequest):
+def extend_leave(thread_id: str, request: ExtendRequest, employee_id: str = Depends(get_current_employee)):
     if request.start_date != request.end_date:
         return {"error": "Extensions are limited to a single day. Please select just one date on the calendar."}
-    return process_extension(thread_id, request.start_date)
+    result = process_extension(thread_id, request.start_date, employee_id)
+    if result.get("error") == "You do not have permission to modify this session.":
+        return JSONResponse(status_code=403, content=result)
+    return result
 
 @app.post("/sessions/{thread_id}/resolve-mixed")
 def resolve_mixed(thread_id: str, request: MixedChoiceRequest):
