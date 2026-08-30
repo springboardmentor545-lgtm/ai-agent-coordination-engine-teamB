@@ -8,3 +8,8 @@ GROQ_API_KEY = os.getenv("GROQ_API_KEY")
 
 if not GROQ_API_KEY:
     raise ValueError("GROQ_API_KEY not found. Did you create a .env file?")
+
+JWT_SECRET = os.getenv("JWT_SECRET")
+
+if not JWT_SECRET:
+    raise ValueError("JWT_SECRET not found. Did you create a .env file?")
