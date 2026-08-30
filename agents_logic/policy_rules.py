@@ -99,33 +99,26 @@ def check_policy_rules(
     }
 
 
-def compute_extension_delta(previous_start: str, previous_end: str, new_start: str, new_end: str):
+def validate_single_day_extension(approved_start: str, approved_end: str, new_date: str):
     """
-    Given a previously approved date range and a newly requested date range,
-    return only the NEW days that were not part of the original approval.
-    Returns (delta_start, delta_end) as strings, or (None, None) if there's no new range
-    (e.g. the new range is fully contained within, or identical to, the approved one).
+    Validate a one-day extension request. The new date must be immediately
+    before approved_start or immediately after approved_end -- nothing else.
+    Returns (is_valid, error_message, new_range_start, new_range_end).
     """
-    prev_s = datetime.strptime(previous_start, "%Y-%m-%d").date()
-    prev_e = datetime.strptime(previous_end, "%Y-%m-%d").date()
-    new_s = datetime.strptime(new_start, "%Y-%m-%d").date()
-    new_e = datetime.strptime(new_end, "%Y-%m-%d").date()
+    a_start = datetime.strptime(approved_start, "%Y-%m-%d").date()
+    a_end = datetime.strptime(approved_end, "%Y-%m-%d").date()
+    n_date = datetime.strptime(new_date, "%Y-%m-%d").date()
 
-    # Case: extension after the approved range (e.g. approved 15-17, now asking 15-18)
-    if new_e > prev_e:
-        delta_start = max(new_s, prev_e + timedelta(days=1))
-        if delta_start <= new_e:
-            return delta_start.isoformat(), new_e.isoformat()
+    if n_date == a_end + timedelta(days=1):
+        return True, None, a_start.isoformat(), n_date.isoformat()
 
-    # Case: extension before the approved range (e.g. approved 15-17, now asking 14-17)
-    if new_s < prev_s:
-        delta_end = min(new_e, prev_s - timedelta(days=1))
-        if new_s <= delta_end:
-            return new_s.isoformat(), delta_end.isoformat()
+    if n_date == a_start - timedelta(days=1):
+        return True, None, n_date.isoformat(), a_end.isoformat()
 
-    # No new days -- fully contained within or identical to the existing approval
-    return None, None
-
+    return False, (
+        f"You can only extend by exactly one day, immediately before {approved_start} "
+        f"or immediately after {approved_end}. {new_date} does not qualify."
+    ), None, None
 
 def compute_cancellation(approved_start: str, approved_end: str, currently_cancelled: list, dates_to_cancel: list, holidays: set):
     """
@@ -185,4 +178,23 @@ def compute_cancellation(approved_start: str, approved_end: str, currently_cance
         "updated_cancelled_dates": updated_cancelled,
         "working_days_credited": working_days_credited,
         "remaining_dates": remaining_dates,
+    }
+
+def split_mixed_request(clean_days: list, conflicting_days: list, holidays: set, s_date: date, e_date: date):
+    """
+    Given a request where some days are clean and some have team conflicts,
+    prepare the two possible sub-requests for the employee to choose between:
+    approving the clean days while escalating the conflicting ones, or
+    escalating the entire original range as one.
+    Returns None if the request is NOT actually mixed (all clean or all conflicting).
+    """
+    if not clean_days or not conflicting_days:
+        return None
+
+    return {
+        "is_mixed": True,
+        "clean_days": sorted(clean_days),
+        "conflicting_days": sorted(conflicting_days),
+        "full_range_start": s_date.isoformat(),
+        "full_range_end": e_date.isoformat(),
     }
