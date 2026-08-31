@@ -39,3 +39,20 @@ async function apiFetch(path, options = {}) {
 
   return response;
 }
+
+function showModal(message, onConfirm) {
+  const overlay = document.createElement("div");
+  overlay.className = "modal-overlay";
+  overlay.innerHTML = `
+    <div class="modal-box">
+      <p>${message}</p>
+      <button class="modal-ok-btn">OK</button>
+    </div>
+  `;
+  document.body.appendChild(overlay);
+
+  overlay.querySelector(".modal-ok-btn").addEventListener("click", function () {
+    document.body.removeChild(overlay);
+    if (onConfirm) onConfirm();
+  });
+}

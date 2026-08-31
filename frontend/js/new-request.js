@@ -138,6 +138,7 @@ document.getElementById("submit-btn").addEventListener("click", async function (
   }
 
   const reason = document.getElementById("reason").value || "not specified";
+  resultMessage.textContent = "Processing...";
 
   const response = await apiFetch("/leave-request", {
     method: "POST",
@@ -150,15 +151,15 @@ document.getElementById("submit-btn").addEventListener("click", async function (
   if (!response) return;
 
   const data = await response.json();
+  resultMessage.textContent = "";
 
   if (response.ok) {
-    resultMessage.textContent = data.decision
+    const message = data.decision
       ? `Result: ${data.decision}`
       : "Request submitted. This may need further review (e.g. a mixed-conflict choice) — check your dashboard.";
-    resultMessage.className = "success";
-    setTimeout(function () {
+    showModal(message, function () {
       window.location.href = "/app/dashboard.html";
-    }, 2500);
+    });
   } else {
     resultMessage.textContent = data.error || "Something went wrong.";
     resultMessage.className = "error";
