@@ -56,3 +56,28 @@ function showModal(message, onConfirm) {
     if (onConfirm) onConfirm();
   });
 }
+
+function showChoiceModal(message, choices, onChoice) {
+  const overlay = document.createElement("div");
+  overlay.className = "modal-overlay";
+
+  const buttonsHtml = choices.map(function (choice, index) {
+    return `<button class="modal-choice-btn" data-index="${index}">${choice.label}</button>`;
+  }).join("");
+
+  overlay.innerHTML = `
+    <div class="modal-box">
+      <p>${message}</p>
+      <div class="modal-choices">${buttonsHtml}</div>
+    </div>
+  `;
+  document.body.appendChild(overlay);
+
+  overlay.querySelectorAll(".modal-choice-btn").forEach(function (btn) {
+    btn.addEventListener("click", function () {
+      const chosen = choices[parseInt(btn.dataset.index, 10)];
+      document.body.removeChild(overlay);
+      onChoice(chosen.value);
+    });
+  });
+}

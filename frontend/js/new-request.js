@@ -164,12 +164,32 @@ document.getElementById("submit-btn").addEventListener("click", async function (
   resultMessage.textContent = "";
 
   if (response.ok) {
-    const message = data.decision
-      ? `Result: ${data.decision}`
-      : "Request submitted. This may need further review (e.g. a mixed-conflict choice) — check your dashboard.";
-    showModal(message, function () {
-      window.location.href = "/app/dashboard.html";
-    });
+    const isMixedConflict = !data.decision && !data.completed_steps.includes("decision");
+
+    if (isMixedConflict) {
+      showChoiceModal(
+        "Your request has some days with a team conflict and some without. How would you like to proceed?",
+        [
+          { label: "Approve clean days, escalate the rest", value: "partial" },
+          { label: "Escalate the entire request", value: "escalate_all" },
+        ],
+        async function (choice) {
+          const resolveResponse = await apiFetch(`/sessions/${data.thread_id}/resolve-mixed`, {
+            method: "POST",
+            body: JSON.stringify({ choice: choice }),
+          });
+          if (!resolveResponse) return;
+          const resolveData = await resolveResponse.json();
+          showModal(resolveData.message || resolveData.error || "Resolved.", function () {
+            window.location.href = "/app/dashboard.html";
+          });
+        }
+      );
+    } else {
+      showModal(`Result: ${data.decision}`, function () {
+        window.location.href = "/app/dashboard.html";
+      });
+    }
   } else {
     resultMessage.textContent = data.error || "Something went wrong.";
     resultMessage.className = "error";

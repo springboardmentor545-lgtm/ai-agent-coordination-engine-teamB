@@ -241,3 +241,15 @@ button.danger {
   width: auto;
   padding: 8px 30px;
 }
+
+.modal-choices {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  margin-top: 15px;
+}
+
+.modal-choice-btn {
+  width: 100%;
+  padding: 10px;
+}
