@@ -36,6 +36,31 @@ def find_own_overlap_conflicts(start_date: str, end_date: str, sessions: list[di
 
     return conflicts
 
+def get_own_reserved_dates(sessions: list[dict], range_start: str, range_end: str) -> dict:
+    """
+    Given an employee's sessions and a display range (e.g. one calendar month),
+    return a mapping of {date: decision_outcome} for every active (non-cancelled)
+    day within that range that belongs to an APPROVE or ESCALATE session.
+    Used by the frontend calendar to highlight and disable those dates.
+    """
+    reserved = {}
+    for session in sessions:
+        outcome = session.get("decision_outcome")
+        if outcome not in ("APPROVE", "ESCALATE"):
+            continue
+
+        s_date = datetime.strptime(session["start_date"], "%Y-%m-%d").date()
+        e_date = datetime.strptime(session["end_date"], "%Y-%m-%d").date()
+        cancelled = set(session.get("cancelled_dates") or [])
+
+        current = s_date
+        while current <= e_date:
+            iso = current.isoformat()
+            if range_start <= iso <= range_end and iso not in cancelled:
+                reserved[iso] = outcome
+            current += timedelta(days=1)
+
+    return reserved
 
 def count_working_days(start: date, end: date, holidays: set) -> int:
     """Count days between start and end (inclusive) excluding weekends and holidays."""

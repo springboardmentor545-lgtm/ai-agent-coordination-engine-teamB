@@ -1,6 +1,6 @@
 import uuid
 from db.queries import get_session, update_session_cancelled_dates, credit_leave_balance, get_holidays_in_range
-from agents_logic.policy_rules import compute_cancellation
+from agents_logic.policy_rules import compute_cancellation, get_own_reserved_dates
 from db.queries import get_sessions_for_employee
 from services.mixed_resolution_service import resolve_mixed_request
 from services.extend_service import process_extension
@@ -146,6 +146,13 @@ def list_sessions(employee_id: str = Depends(get_current_employee)):
 def list_holidays(start_date: str, end_date: str, employee_id: str = Depends(get_current_employee)):
     holidays = get_holidays_in_range(start_date, end_date)
     return {"holidays": holidays}
+
+
+@app.get("/my-leave-dates")
+def my_leave_dates(start_date: str, end_date: str, employee_id: str = Depends(get_current_employee)):
+    sessions = get_sessions_for_employee(employee_id)
+    reserved = get_own_reserved_dates(sessions, start_date, end_date)
+    return {"reserved_dates": reserved}
 
 @app.post("/sessions/{thread_id}/cancel")
 def cancel_leave(thread_id: str, request: CancelRequest, employee_id: str = Depends(get_current_employee)):
