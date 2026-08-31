@@ -209,7 +209,7 @@ def get_sessions_for_employee(employee_id: str) -> list[dict]:
     cursor = conn.cursor()
     cursor.execute(
         """
-        SELECT thread_id, start_date, end_date, decision_outcome, reason, created_at, updated_at
+        SELECT thread_id, start_date, end_date, decision_outcome, reason, created_at, updated_at, cancelled_dates, extend_locked
         FROM sessions WHERE employee_id = %s ORDER BY updated_at DESC;
         """,
         (employee_id,)
@@ -227,6 +227,8 @@ def get_sessions_for_employee(employee_id: str) -> list[dict]:
             "reason": r[4],
             "created_at": str(r[5]),
             "updated_at": str(r[6]),
+            "cancelled_dates": r[7] if r[7] else [],
+            "extend_locked": r[8],
         }
         for r in rows
     ]
