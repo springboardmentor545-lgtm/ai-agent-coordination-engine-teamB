@@ -1,0 +1,36 @@
+<!DOCTYPE html>
+<html>
+<head>
+  <title>New Leave Request</title>
+  <link rel="stylesheet" href="css/style.css">
+</head>
+<body>
+  <div class="container wide">
+    <div class="header-row">
+      <h1>New Leave Request</h1>
+      <a href="dashboard.html"><button class="secondary">Back to Dashboard</button></a>
+    </div>
+
+    <div class="calendar-nav">
+      <button id="prev-month" class="secondary">&laquo; Prev</button>
+      <span id="month-label"></span>
+      <button id="next-month" class="secondary">Next &raquo;</button>
+    </div>
+
+    <div id="calendar-grid" class="calendar-grid"></div>
+
+    <p class="hint">Click a start date, then an end date. Weekends and holidays are unavailable.</p>
+
+    <p id="selection-summary"></p>
+
+    <label for="reason">Reason</label>
+    <input type="text" id="reason" placeholder="e.g. family event">
+
+    <button id="submit-btn">Submit Request</button>
+    <p id="result-message"></p>
+  </div>
+
+  <script src="js/api.js"></script>
+  <script src="js/new-request.js"></script>
+</body>
+</html>
