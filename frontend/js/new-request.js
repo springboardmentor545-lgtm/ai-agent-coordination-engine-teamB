@@ -78,6 +78,7 @@ async function renderCalendar() {
 
 let selectedStart = null;
 let selectedEnd = null;
+let selectionLocked = false;
 
 function updateSelectionSummary() {
   const summary = document.getElementById("selection-summary");
@@ -113,13 +114,22 @@ document.getElementById("calendar-grid").addEventListener("click", function (eve
 
   const clickedDate = cell.dataset.date;
 
-  if (!selectedStart || (selectedStart && selectedEnd)) {
+  if (!selectedStart || selectionLocked) {
+    // Starting a fresh selection: this single day is immediately a valid
+    // one-day range on its own, no second click required.
     selectedStart = clickedDate;
-    selectedEnd = null;
-  } else if (clickedDate < selectedStart) {
-    selectedStart = clickedDate;
-  } else {
     selectedEnd = clickedDate;
+    selectionLocked = false;
+  } else {
+    // A start already exists and isn't locked yet: this click extends it
+    // into a multi-day range, then locks — the next click after this starts fresh.
+    if (clickedDate < selectedStart) {
+      selectedEnd = selectedStart;
+      selectedStart = clickedDate;
+    } else {
+      selectedEnd = clickedDate;
+    }
+    selectionLocked = true;
   }
 
   updateSelectionSummary();
