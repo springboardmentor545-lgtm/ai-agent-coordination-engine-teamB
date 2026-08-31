@@ -1,6 +1,8 @@
 import json
 from datetime import date
 from agents.base_agent import Agent
+from db.queries import get_sessions_for_employee
+from agents_logic.policy_rules import find_own_overlap_conflicts
 
 planning_worker = Agent(
     name="Planning Agent",
@@ -25,6 +27,26 @@ planning_worker = Agent(
 def load_policy_document():
     with open("data/leave_policy.txt", "r") as f:
         return f.read()
+def check_own_date_overlap(employee_id: str, start_date: str, end_date: str) -> str | None:
+    """
+    Check whether the requested date range overlaps any of this employee's own
+    existing APPROVE or ESCALATE sessions. Returns a clear error string if a
+    conflict is found, or None if the range is genuinely free.
+    """
+    existing_sessions = get_sessions_for_employee(employee_id)
+    conflicts = find_own_overlap_conflicts(start_date, end_date, existing_sessions)
+
+    if not conflicts:
+        return None
+
+    descriptions = [
+        f"{c['decision_outcome']} leave on {', '.join(c['overlapping_dates'])}"
+        for c in conflicts
+    ]
+    return (
+        "planning: You already have " + "; ".join(descriptions) +
+        ". Please choose different dates, or cancel/resolve the existing request first."
+    )
 
 def planning_agent(state):
     state["error"] = None
@@ -47,6 +69,11 @@ def planning_agent(state):
 
             if not state.get("start_date") or not state.get("end_date"):
                 state["error"] = "planning: Structured request was missing start_date or end_date."
+            return state
+
+            overlap_error = check_own_date_overlap(state["employee_id"], state["start_date"], state["end_date"])
+            if overlap_error:
+                state["error"] = overlap_error
             return state
 
         existing_context = ""
@@ -109,6 +136,10 @@ def planning_agent(state):
         # Hard stop if we still don't have usable dates after all this
         if not state["start_date"] or not state["end_date"]:
             state["error"] = "planning: Could not determine specific leave dates from the request. Please ask the employee for exact start and end dates."
+        else:
+            overlap_error = check_own_date_overlap(state["employee_id"], state["start_date"], state["end_date"])
+            if overlap_error:
+                state["error"] = overlap_error
 
     except Exception as e:
         state["error"] = f"planning: {str(e)}"

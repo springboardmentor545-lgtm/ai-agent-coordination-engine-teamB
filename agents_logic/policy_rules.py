@@ -1,5 +1,41 @@
 from datetime import date, datetime, timedelta
 
+def find_own_overlap_conflicts(start_date: str, end_date: str, sessions: list[dict]) -> list[dict]:
+    """
+    Given a requested date range and an employee's existing sessions, return any
+    APPROVE or ESCALATE sessions whose active (non-cancelled) days overlap the
+    requested range. REJECT sessions never block, and any individually cancelled
+    day within an approved session no longer blocks either.
+    """
+    def date_range(s, e):
+        s_date = datetime.strptime(s, "%Y-%m-%d").date()
+        e_date = datetime.strptime(e, "%Y-%m-%d").date()
+        days = []
+        current = s_date
+        while current <= e_date:
+            days.append(current.isoformat())
+            current += timedelta(days=1)
+        return days
+
+    requested_days = set(date_range(start_date, end_date))
+    conflicts = []
+
+    for session in sessions:
+        if session.get("decision_outcome") not in ("APPROVE", "ESCALATE"):
+            continue
+        session_days = set(date_range(session["start_date"], session["end_date"]))
+        cancelled = set(session.get("cancelled_dates") or [])
+        active_days = session_days - cancelled
+        overlap = requested_days & active_days
+        if overlap:
+            conflicts.append({
+                "thread_id": session["thread_id"],
+                "decision_outcome": session["decision_outcome"],
+                "overlapping_dates": sorted(overlap),
+            })
+
+    return conflicts
+
 
 def count_working_days(start: date, end: date, holidays: set) -> int:
     """Count days between start and end (inclusive) excluding weekends and holidays."""
