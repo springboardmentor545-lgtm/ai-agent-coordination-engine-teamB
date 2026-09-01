@@ -19,26 +19,28 @@ def reset_and_seed():
     cursor.execute("DELETE FROM employees;")
 
     # 2. Insert employees
-    # Every seeded employee gets the same test password ("password123"), but each
-    # gets its own independent bcrypt.hashpw() call, so each hash has its own random
-    # salt and the stored hashes genuinely differ, even though the plaintext is identical.
-    def hash_test_password():
-        return bcrypt.hashpw(b"password123", bcrypt.gensalt()).decode("utf-8")
+    # Each seeded employee gets their own distinct test password (e.g. "password1001"
+    # for EMP1001), individually hashed with its own random bcrypt salt. Distinct
+    # plaintext passwords per employee, not just distinct hashes, makes this clearer
+    # to demo — each login genuinely uses its own credential, not a shared one.
+    def hash_password_for(employee_id):
+        plaintext = f"password{employee_id[3:]}"
+        return bcrypt.hashpw(plaintext.encode("utf-8"), bcrypt.gensalt()).decode("utf-8")
 
     employees = [
-        ("EMP1001", "Mahi Joshi", "Engineering", "EMP1006", 18, hash_test_password()),
-        ("EMP1002", "Sagar Mehta", "Engineering", "EMP1006", 20, hash_test_password()),
-        ("EMP1003", "Radha Kulkarni", "Engineering", "EMP1006", 15, hash_test_password()),
-        ("EMP1004", "Suhani Mishra", "Marketing", "EMP1007", 2, hash_test_password()),
-        ("EMP1005", "Kartik Sharma", "Marketing", "EMP1007", 20, hash_test_password()),
-        ("EMP1006", "Anjali Verma", "Engineering", None, 20, hash_test_password()),
-        ("EMP1007", "Suhani Pande", "Marketing", None, 20, hash_test_password()),
-        ("EMP1008", "Raj Deshmukh", "Engineering", "EMP1006", 20, hash_test_password()),
+        ("EMP1001", "Mahi Joshi", "Engineering", "EMP1006", 18, hash_password_for("EMP1001")),
+        ("EMP1002", "Sagar Mehta", "Engineering", "EMP1006", 20, hash_password_for("EMP1002")),
+        ("EMP1003", "Radha Kulkarni", "Engineering", "EMP1006", 15, hash_password_for("EMP1003")),
+        ("EMP1004", "Suhani Mishra", "Marketing", "EMP1007", 2, hash_password_for("EMP1004")),
+        ("EMP1005", "Kartik Sharma", "Marketing", "EMP1007", 20, hash_password_for("EMP1005")),
+        ("EMP1006", "Anjali Verma", "Engineering", None, 20, hash_password_for("EMP1006")),
+        ("EMP1007", "Suhani Pande", "Marketing", None, 20, hash_password_for("EMP1007")),
+        ("EMP1008", "Raj Deshmukh", "Engineering", "EMP1006", 20, hash_password_for("EMP1008")),
     ]
     cursor.executemany(
         "INSERT INTO employees (employee_id, name, department, manager_id, leave_balance, password_hash) VALUES (%s, %s, %s, %s, %s, %s);",
         employees
-    )    
+    ) 
 
 
     # 3. Insert some leave history (past approved leaves)
