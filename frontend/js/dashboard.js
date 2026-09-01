@@ -66,10 +66,16 @@ function buildSessionCard(session) {
     extraControls = `<div class="card-actions">${extendHtml}${cancelHtml}</div>`;
   }
 
+  let cancelledNote = "";
+  if (session.cancelled_dates && session.cancelled_dates.length > 0) {
+    cancelledNote = `<p class="cancelled-note">Cancelled: ${session.cancelled_dates.join(", ")}</p>`;
+  }
+
   card.innerHTML = `
     <strong>${session.start_date} to ${session.end_date}</strong>
     <span class="outcome outcome-${session.decision_outcome}">${session.decision_outcome}</span>
     <p>${session.reason || ""}</p>
+    ${cancelledNote}
     <p class="thread-id">Thread: ${session.thread_id}</p>
     ${extraControls}
     <p class="card-message"></p>

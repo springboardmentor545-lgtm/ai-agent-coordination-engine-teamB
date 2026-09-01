@@ -104,6 +104,13 @@ a button {
   word-break: break-all;
 }
 
+.cancelled-note {
+  font-size: 0.85em;
+  color: #d9534f;
+  font-style: italic;
+  margin: 5px 0;
+}
+
 .calendar-nav {
   display: flex;
   justify-content: space-between;
