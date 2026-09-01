@@ -2,7 +2,7 @@ from datetime import date as _date
 from agents.research_agent import research_agent
 from agents.analysis_agent import analysis_agent
 from agents.decision_agent import decision_worker
-from agents_logic.policy_rules import validate_single_day_extension
+from agents_logic.policy_rules import validate_single_day_extension, detect_decision_outcome
 from db.queries import get_session, create_or_update_session, deduct_leave_balance, record_leave_history, save_long_term_memory
 from db.queries import lock_extend_for_session
 
@@ -57,14 +57,7 @@ def process_extension(thread_id: str, new_date: str, employee_id: str) -> dict:
         f"Give the final decision (APPROVE, REJECT, or ESCALATE) with a clear explanation."
     )
     result = decision_worker.think(task)
-
-    outcome = "UNKNOWN"
-    if result.upper().startswith("APPROVE"):
-        outcome = "APPROVE"
-    elif result.upper().startswith("REJECT"):
-        outcome = "REJECT"
-    elif result.upper().startswith("ESCALATE"):
-        outcome = "ESCALATE"
+    outcome = detect_decision_outcome(result)
 
     if outcome == "APPROVE":
         working_days = rule_results.get("requested_days", 0)

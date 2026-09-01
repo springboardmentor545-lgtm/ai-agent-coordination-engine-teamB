@@ -1,6 +1,7 @@
 from db.queries import create_or_update_session
 from db.queries import save_long_term_memory, deduct_leave_balance, record_leave_history
 from agents.base_agent import Agent
+from agents_logic.policy_rules import detect_decision_outcome
 
 decision_worker = Agent(
     name="Decision Agent",
@@ -42,8 +43,10 @@ def decision_agent(state):
         )
         result = decision_worker.think(task)
 
-        # Detect outcome from the RAW result, before any delta note is prepended
-        outcome = "UNKNOWN"
+        # Detect outcome from the RAW result, before any delta note is prepended.
+        # Uses a shared, markdown-tolerant parser (see policy_rules.py) so formatting
+        # the LLM adds around the decision word never masks the actual decision.
+        outcome = detect_decision_outcome(result)
         if result.upper().startswith("APPROVE"):
             outcome = "APPROVE"
         elif result.upper().startswith("REJECT"):

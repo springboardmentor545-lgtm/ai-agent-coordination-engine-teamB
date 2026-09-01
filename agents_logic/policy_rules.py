@@ -1,4 +1,25 @@
+import re
 from datetime import date, datetime, timedelta
+
+
+def detect_decision_outcome(result_text: str) -> str:
+    """
+    Determine APPROVE/REJECT/ESCALATE from the Decision Agent's raw LLM output.
+    Strips any leading non-letter characters (markdown formatting like **, __, #,
+    stray whitespace, etc.) before checking, so formatting the LLM adds around
+    the decision word never masks the actual decision. Returns "UNKNOWN" if none
+    of the three expected words appears at the start.
+    """
+    cleaned = re.sub(r"^[^A-Za-z]+", "", result_text.strip()).upper()
+
+    if cleaned.startswith("APPROVE"):
+        return "APPROVE"
+    elif cleaned.startswith("REJECT"):
+        return "REJECT"
+    elif cleaned.startswith("ESCALATE"):
+        return "ESCALATE"
+    return "UNKNOWN"
+
 
 def find_own_overlap_conflicts(start_date: str, end_date: str, sessions: list[dict]) -> list[dict]:
     """
