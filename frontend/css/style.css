@@ -149,6 +149,16 @@ a button {
   cursor: not-allowed;
 }
 
+.day-cell.reserved-approved {
+  background: #c3e6cb;
+  color: #1e4620;
+}
+
+.day-cell.reserved-escalated {
+  background: #ffe8a1;
+  color: #6b5300;
+}
+
 .hint {
   font-size: 0.85em;
   color: #666;

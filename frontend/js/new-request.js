@@ -4,6 +4,7 @@ let currentMonth = new Date();
 currentMonth.setDate(1);
 
 let holidaySet = new Set();
+let reservedDates = {};
 
 function formatDateISO(date) {
   const year = date.getFullYear();
@@ -28,10 +29,20 @@ async function loadHolidaysForMonth() {
   const lastDay = new Date(currentMonth.getFullYear(), currentMonth.getMonth() + 1, 0);
   const end = formatDateISO(lastDay);
 
-  const response = await apiFetch(`/holidays?start_date=${start}&end_date=${end}`);
-  if (!response) return;
-  const data = await response.json();
-  holidaySet = new Set(data.holidays || []);
+  const [holidaysResponse, reservedResponse] = await Promise.all([
+    apiFetch(`/holidays?start_date=${start}&end_date=${end}`),
+    apiFetch(`/my-leave-dates?start_date=${start}&end_date=${end}`),
+  ]);
+
+  if (holidaysResponse) {
+    const holidaysData = await holidaysResponse.json();
+    holidaySet = new Set(holidaysData.holidays || []);
+  }
+
+  if (reservedResponse) {
+    const reservedData = await reservedResponse.json();
+    reservedDates = reservedData.reserved_dates || {};
+  }
 }
 
 async function renderCalendar() {
@@ -68,7 +79,24 @@ async function renderCalendar() {
     cell.textContent = d;
     cell.dataset.date = iso;
 
-    if (isWeekend(cellDate) || holidaySet.has(iso) || isPast(cellDate)) {
+    // Priority order for both styling and the hover tooltip: an employee's
+    // own reserved leave is the most specific, important information, so it
+    // takes precedence over holiday, which takes precedence over weekend.
+    const reservedOutcome = reservedDates[iso];
+
+    if (reservedOutcome === "APPROVE") {
+      cell.classList.add("disabled", "reserved-approved");
+      cell.title = "Approved Leave";
+    } else if (reservedOutcome === "ESCALATE") {
+      cell.classList.add("disabled", "reserved-escalated");
+      cell.title = "Escalated (Pending Review)";
+    } else if (holidaySet.has(iso)) {
+      cell.classList.add("disabled");
+      cell.title = "Official Holiday";
+    } else if (isWeekend(cellDate)) {
+      cell.classList.add("disabled");
+      cell.title = "Weekend";
+    } else if (isPast(cellDate)) {
       cell.classList.add("disabled");
     }
 
