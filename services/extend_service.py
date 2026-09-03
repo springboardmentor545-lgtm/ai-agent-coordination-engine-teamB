@@ -4,7 +4,7 @@ from agents.analysis_agent import analysis_agent
 from agents.decision_agent import decision_worker
 from agents_logic.policy_rules import validate_single_day_extension, detect_decision_outcome
 from db.queries import get_session, create_or_update_session, deduct_leave_balance, record_leave_history, save_long_term_memory
-from db.queries import lock_extend_for_session
+from db.queries import lock_extend_for_session, get_holidays_in_range
 
 
 def process_extension(thread_id: str, new_date: str, employee_id: str) -> dict:
@@ -22,8 +22,10 @@ def process_extension(thread_id: str, new_date: str, employee_id: str) -> dict:
         return {"error": "Only approved leave sessions can be extended."}
     if session.get("extend_locked"):
         return {"error": "Extension is no longer available for this session. You can still cancel part or all of your approved leave."}
+
+    holidays_in_window = set(get_holidays_in_range(new_date, new_date))
     is_valid, error_message, new_range_start, new_range_end = validate_single_day_extension(
-        session["start_date"], session["end_date"], new_date
+        session["start_date"], session["end_date"], new_date, holidays=holidays_in_window
     )
     if not is_valid:
         return {"error": error_message}

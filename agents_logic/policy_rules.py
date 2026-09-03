@@ -180,27 +180,45 @@ def check_policy_rules(
         "conflicting_days": conflicting_days,
     }
 
-
-def validate_single_day_extension(approved_start: str, approved_end: str, new_date: str):
+def validate_single_day_extension(approved_start: str, approved_end: str, new_date: str, holidays: set = None):
     """
     Validate a one-day extension request. The new date must be immediately
     before approved_start or immediately after approved_end -- nothing else.
+    It must also be an actual working day (not a weekend or official holiday);
+    extending onto a non-working day is meaningless since the employee wasn't
+    scheduled to work it anyway.
     Returns (is_valid, error_message, new_range_start, new_range_end).
     """
+    holidays = holidays or set()
     a_start = datetime.strptime(approved_start, "%Y-%m-%d").date()
     a_end = datetime.strptime(approved_end, "%Y-%m-%d").date()
     n_date = datetime.strptime(new_date, "%Y-%m-%d").date()
 
-    if n_date == a_end + timedelta(days=1):
+    is_adjacent_after = n_date == a_end + timedelta(days=1)
+    is_adjacent_before = n_date == a_start - timedelta(days=1)
+
+    if not (is_adjacent_after or is_adjacent_before):
+        return False, (
+            f"You can only extend by exactly one day, immediately before {approved_start} "
+            f"or immediately after {approved_end}. {new_date} does not qualify."
+        ), None, None
+
+    if n_date.weekday() >= 5:
+        return False, (
+            f"{new_date} is a weekend. Extending onto a non-working day isn't meaningful "
+            f"since you weren't scheduled to work it anyway."
+        ), None, None
+
+    if new_date in holidays:
+        return False, (
+            f"{new_date} is an official company holiday. Extending onto a non-working day "
+            f"isn't meaningful since you weren't scheduled to work it anyway."
+        ), None, None
+
+    if is_adjacent_after:
         return True, None, a_start.isoformat(), n_date.isoformat()
 
-    if n_date == a_start - timedelta(days=1):
-        return True, None, n_date.isoformat(), a_end.isoformat()
-
-    return False, (
-        f"You can only extend by exactly one day, immediately before {approved_start} "
-        f"or immediately after {approved_end}. {new_date} does not qualify."
-    ), None, None
+    return True, None, n_date.isoformat(), a_end.isoformat()
 
 def compute_cancellation(approved_start: str, approved_end: str, currently_cancelled: list, dates_to_cancel: list, holidays: set):
     """
