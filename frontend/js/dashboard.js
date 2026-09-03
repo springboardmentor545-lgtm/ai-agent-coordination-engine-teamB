@@ -24,7 +24,14 @@ function getDateRange(startIso, endIso) {
   return dates;
 }
 
-function buildSessionCard(session) {
+function getExtendUnavailableReason(dateIso, holidaySet) {
+  const dayOfWeek = new Date(dateIso + "T00:00:00").getDay(); // 0 = Sunday, 6 = Saturday
+  if (dayOfWeek === 0 || dayOfWeek === 6) return "Weekend";
+  if (holidaySet.has(dateIso)) return "Official Holiday";
+  return null;
+}
+
+function buildSessionCard(session, holidaySet) {
   const card = document.createElement("div");
   card.className = "session-card";
   card.dataset.threadId = session.thread_id;
@@ -39,10 +46,18 @@ function buildSessionCard(session) {
     if (session.extend_locked) {
       extendHtml = `<p class="hint">Extension unavailable for this session.</p>`;
     } else {
-      extendHtml = `
-        <button class="secondary extend-btn" data-date="${dayBefore}">Extend to include ${dayBefore}</button>
-        <button class="secondary extend-btn" data-date="${dayAfter}">Extend to include ${dayAfter}</button>
-      `;
+      const beforeReason = getExtendUnavailableReason(dayBefore, holidaySet);
+      const afterReason = getExtendUnavailableReason(dayAfter, holidaySet);
+
+      const beforeControl = beforeReason
+        ? `<button class="secondary extend-unavailable" disabled title="${beforeReason}">${dayBefore} - ${beforeReason}</button>`
+        : `<button class="secondary extend-btn" data-date="${dayBefore}">Extend to include ${dayBefore}</button>`;
+
+      const afterControl = afterReason
+        ? `<button class="secondary extend-unavailable" disabled title="${afterReason}">${dayAfter} - ${afterReason}</button>`
+        : `<button class="secondary extend-btn" data-date="${dayAfter}">Extend to include ${dayAfter}</button>`;
+
+      extendHtml = `${beforeControl}${afterControl}`;
     }
 
     const remainingDates = getDateRange(session.start_date, session.end_date)
@@ -84,6 +99,28 @@ function buildSessionCard(session) {
   return card;
 }
 
+async function fetchHolidaySetForCandidates(sessions) {
+  const candidateDates = [];
+  sessions.forEach(function (session) {
+    if (session.decision_outcome === "APPROVE" && !session.extend_locked) {
+      candidateDates.push(addDays(session.start_date, -1));
+      candidateDates.push(addDays(session.end_date, 1));
+    }
+  });
+
+  if (candidateDates.length === 0) return new Set();
+
+  candidateDates.sort();
+  const rangeStart = candidateDates[0];
+  const rangeEnd = candidateDates[candidateDates.length - 1];
+
+  const response = await apiFetch(`/holidays?start_date=${rangeStart}&end_date=${rangeEnd}`);
+  if (!response) return new Set();
+
+  const data = await response.json();
+  return new Set(data.holidays || []);
+}
+
 async function loadSessions() {
   const response = await apiFetch("/sessions");
   if (!response) return;
@@ -96,9 +133,11 @@ async function loadSessions() {
     return;
   }
 
+  const holidaySet = await fetchHolidaySetForCandidates(data.sessions);
+
   listDiv.innerHTML = "";
   data.sessions.forEach(function (session) {
-    listDiv.appendChild(buildSessionCard(session));
+    listDiv.appendChild(buildSessionCard(session, holidaySet));
   });
 }
 
