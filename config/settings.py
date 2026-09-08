@@ -13,3 +13,6 @@ JWT_SECRET = os.getenv("JWT_SECRET")
 
 if not JWT_SECRET:
     raise ValueError("JWT_SECRET not found. Did you create a .env file?")
+
+# Session length in minutes. Defaults to 480 (8 hours) if not set in .env.
+JWT_EXPIRY_MINUTES = int(os.getenv("JWT_EXPIRY_MINUTES", "480"))

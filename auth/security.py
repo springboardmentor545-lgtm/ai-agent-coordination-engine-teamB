@@ -1,20 +1,17 @@
 import bcrypt
 import jwt
 from datetime import datetime, timedelta, timezone
-from config.settings import JWT_SECRET
+from config.settings import JWT_SECRET, JWT_EXPIRY_MINUTES
 
 JWT_ALGORITHM = "HS256"
-JWT_EXPIRY_HOURS = 8
-
 
 def verify_password(plain_password: str, password_hash: str) -> bool:
     """Check a plaintext password against a stored bcrypt hash."""
     return bcrypt.checkpw(plain_password.encode("utf-8"), password_hash.encode("utf-8"))
 
-
 def create_access_token(employee_id: str) -> str:
-    """Create a signed JWT containing the employee_id, expiring in JWT_EXPIRY_HOURS."""
-    expire = datetime.now(timezone.utc) + timedelta(hours=JWT_EXPIRY_HOURS)
+    """Create a signed JWT containing the employee_id, expiring in JWT_EXPIRY_MINUTES."""
+    expire = datetime.now(timezone.utc) + timedelta(minutes=JWT_EXPIRY_MINUTES)
     payload = {
         "employee_id": employee_id,
         "exp": expire,
