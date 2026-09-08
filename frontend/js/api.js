@@ -13,8 +13,45 @@ function clearToken() {
 }
 
 function requireLogin() {
-  if (!getToken()) {
+  const token = getToken();
+  if (!token) {
     window.location.href = "/app/login.html";
+    return;
+  }
+  armSessionExpiryTimer(token);
+}
+
+function armSessionExpiryTimer(token) {
+  const payload = decodeJwtPayload(token);
+  if (!payload || !payload.exp) {
+    return;
+  }
+
+  const expiryTimeMs = payload.exp * 1000;
+  const msUntilExpiry = expiryTimeMs - Date.now();
+
+  if (msUntilExpiry <= 0) {
+    expireSessionNow();
+    return;
+  }
+
+  setTimeout(expireSessionNow, msUntilExpiry);
+}
+
+function expireSessionNow() {
+  clearToken();
+  showModal("Your session has expired. Please log in again.", function () {
+    window.location.href = "/app/login.html";
+  });
+}
+
+function decodeJwtPayload(token) {
+  try {
+    const base64Url = token.split(".")[1];
+    const base64 = base64Url.replace(/-/g, "+").replace(/_/g, "/");
+    return JSON.parse(atob(base64));
+  } catch (e) {
+    return null;
   }
 }
 
@@ -32,11 +69,9 @@ async function apiFetch(path, options = {}) {
   const response = await fetch(API_BASE + path, { ...options, headers });
 
   if (response.status === 401) {
-    clearToken();
-    window.location.href = "/app/login.html";
+    expireSessionNow();
     return null;
   }
-
   return response;
 }
 
