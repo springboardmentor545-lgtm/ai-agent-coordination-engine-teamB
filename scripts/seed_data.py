@@ -28,20 +28,19 @@ def reset_and_seed():
         return bcrypt.hashpw(plaintext.encode("utf-8"), bcrypt.gensalt()).decode("utf-8")
 
     employees = [
-        ("EMP1001", "Mahi Joshi", "Engineering", "EMP1006", 18, hash_password_for("EMP1001")),
-        ("EMP1002", "Sagar Mehta", "Engineering", "EMP1006", 20, hash_password_for("EMP1002")),
-        ("EMP1003", "Radha Kulkarni", "Engineering", "EMP1006", 15, hash_password_for("EMP1003")),
-        ("EMP1004", "Suhani Mishra", "Marketing", "EMP1007", 2, hash_password_for("EMP1004")),
-        ("EMP1005", "Kartik Sharma", "Marketing", "EMP1007", 20, hash_password_for("EMP1005")),
-        ("EMP1006", "Anjali Verma", "Engineering", None, 20, hash_password_for("EMP1006")),
-        ("EMP1007", "Suhani Pande", "Marketing", None, 20, hash_password_for("EMP1007")),
-        ("EMP1008", "Raj Deshmukh", "Engineering", "EMP1006", 20, hash_password_for("EMP1008")),
+        ("EMP1001", "Mahi Joshi", "Engineering", "EMP1006", 18, hash_password_for("EMP1001"), "mahi.joshi@company.com"),
+        ("EMP1002", "Sagar Mehta", "Engineering", "EMP1006", 20, hash_password_for("EMP1002"), "sagar.mehta@company.com"),
+        ("EMP1003", "Radha Kulkarni", "Engineering", "EMP1006", 15, hash_password_for("EMP1003"), "radha.kulkarni@company.com"),
+        ("EMP1004", "Suhani Mishra", "Marketing", "EMP1007", 2, hash_password_for("EMP1004"), "suhani.mishra@company.com"),
+        ("EMP1005", "Kartik Sharma", "Marketing", "EMP1007", 20, hash_password_for("EMP1005"), "kartik.sharma@company.com"),
+        ("EMP1006", "Anjali Verma", "Engineering", None, 20, hash_password_for("EMP1006"), "anjali.verma@company.com"),
+        ("EMP1007", "Suhani Pande", "Marketing", None, 20, hash_password_for("EMP1007"), "suhani.pande@company.com"),
+        ("EMP1008", "Raj Deshmukh", "Engineering", "EMP1006", 20, hash_password_for("EMP1008"), "raj.deshmukh@company.com"),
     ]
     cursor.executemany(
-        "INSERT INTO employees (employee_id, name, department, manager_id, leave_balance, password_hash) VALUES (%s, %s, %s, %s, %s, %s);",
+        "INSERT INTO employees (employee_id, name, department, manager_id, leave_balance, password_hash, email) VALUES (%s, %s, %s, %s, %s, %s, %s);",
         employees
-    ) 
-
+    )
 
     # 3. Insert some leave history (past approved leaves)
     leave_history = [
