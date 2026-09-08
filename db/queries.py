@@ -50,6 +50,22 @@ def get_employee_password_hash(employee_id: str) -> str | None:
         return None
     return row[0]
 
+def get_employee_by_email(email: str) -> dict | None:
+    """Look up an employee's ID and password hash by email, for login. Returns None if no match."""
+    conn = get_connection()
+    cursor = conn.cursor()
+    cursor.execute(
+        "SELECT employee_id, password_hash FROM employees WHERE email = %s;",
+        (email,)
+    )
+    row = cursor.fetchone()
+    cursor.close()
+    conn.close()
+
+    if row is None:
+        return None
+    return {"employee_id": row[0], "password_hash": row[1]}
+
 def get_leave_history(employee_id: str) -> list[dict]:
     """Fetch past leave records for an employee."""
     conn = get_connection()
