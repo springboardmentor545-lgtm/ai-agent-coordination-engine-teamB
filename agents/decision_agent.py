@@ -1,7 +1,9 @@
+import time
 from db.queries import create_or_update_session
 from db.queries import save_long_term_memory, deduct_leave_balance, record_leave_history
 from agents.base_agent import Agent
 from agents_logic.policy_rules import detect_decision_outcome
+from observability.audit_logger import log_event
 
 decision_worker = Agent(
     name="Decision Agent",
@@ -34,6 +36,11 @@ decision_worker = Agent(
 
 def decision_agent(state):
     state["error"] = None
+    thread_id = state.get("thread_id")
+    employee_id = state.get("employee_id")
+    start_time = time.time()
+    log_event(thread_id=thread_id, employee_id=employee_id, agent_name="Decision Agent",
+               action="agent_started")
     try:
         rule_results = state["analysis"]["rule_results"]
         task = (
@@ -84,6 +91,8 @@ def decision_agent(state):
             working_days = rule_results.get("requested_days", 0)
             if working_days > 0:
                 deduct_leave_balance(state["employee_id"], working_days)
+                log_event(thread_id=thread_id, employee_id=employee_id, agent_name="Decision Agent",
+                           action="balance_deducted", detail=f"{working_days} working day(s) deducted")
             reason = state.get("fetched_data", {}).get("reason", "not specified")
             record_leave_history(
                 state["employee_id"],
@@ -94,4 +103,13 @@ def decision_agent(state):
             )
     except Exception as e:
         state["error"] = f"decision: {str(e)}"
+
+    duration_ms = int((time.time() - start_time) * 1000)
+    if state["error"]:
+        log_event(thread_id=thread_id, employee_id=employee_id, agent_name="Decision Agent",
+                   action="agent_failed", status="failure", duration_ms=duration_ms, detail=state["error"])
+    else:
+        log_event(thread_id=thread_id, employee_id=employee_id, agent_name="Decision Agent",
+                   action="agent_completed", duration_ms=duration_ms,
+                   detail=f"outcome: {state.get('decision_outcome')}")
     return state

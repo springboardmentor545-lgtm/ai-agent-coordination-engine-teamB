@@ -1,6 +1,8 @@
 import json
+import time
 from agents.base_agent import Agent
 from tools.analysis_tools import evaluate_leave_policy
+from observability.audit_logger import log_event
 
 analysis_worker = Agent(
     name="Analysis Agent",
@@ -20,6 +22,11 @@ analysis_worker = Agent(
 
 def analysis_agent(state):
     state["error"] = None
+    thread_id = state.get("thread_id")
+    employee_id = state.get("employee_id")
+    start_time = time.time()
+    log_event(thread_id=thread_id, employee_id=employee_id, agent_name="Analysis Agent",
+               action="agent_started")
     try:
         raw_data = state["research"]["raw_data"]
         balance_info = raw_data.get("fetch_leave_balance", {})
@@ -54,6 +61,8 @@ def analysis_agent(state):
                     rule_results = json.loads(msg.content) if isinstance(msg.content, str) else msg.content
                 except (json.JSONDecodeError, TypeError):
                     rule_results = msg.content
+                log_event(thread_id=thread_id, employee_id=employee_id, agent_name="Analysis Agent",
+                           action="tool_called", tool_name="evaluate_leave_policy")
 
         if not rule_results:
             raise ValueError("Policy evaluation tool did not return results.")
@@ -65,4 +74,14 @@ def analysis_agent(state):
         state["completed_steps"] = state.get("completed_steps", []) + ["analysis"]
     except Exception as e:
         state["error"] = f"analysis: {str(e)}"
+
+    duration_ms = int((time.time() - start_time) * 1000)
+    if state["error"]:
+        log_event(thread_id=thread_id, employee_id=employee_id, agent_name="Analysis Agent",
+                   action="agent_failed", status="failure", duration_ms=duration_ms, detail=state["error"])
+    else:
+        rule_results = state.get("analysis", {}).get("rule_results", {})
+        summary = f"balance_ok={rule_results.get('balance_ok')}, notice_ok={rule_results.get('notice_ok')}, team_conflict={rule_results.get('team_conflict')}"
+        log_event(thread_id=thread_id, employee_id=employee_id, agent_name="Analysis Agent",
+                   action="agent_completed", duration_ms=duration_ms, detail=summary)
     return state

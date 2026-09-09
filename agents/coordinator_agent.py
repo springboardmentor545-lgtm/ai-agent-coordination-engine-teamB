@@ -1,7 +1,9 @@
 import json
+import time
 from agents.base_agent import Agent
 from agents_logic.policy_rules import split_mixed_request
 from datetime import datetime as _datetime
+from observability.audit_logger import log_event
 
 MAX_RETRIES = 1
 
@@ -39,6 +41,9 @@ def coordinator_agent(state):
     completed_steps = state.get("completed_steps", [])
     error = state.get("error")
     retry_count = state.get("retry_count", {})
+    thread_id = state.get("thread_id")
+    employee_id = state.get("employee_id")
+    start_time = time.time()
 
     # Deterministic lock: once a request has been escalated or rejected,
     # do not allow further self-service modification within this conversation.
@@ -63,6 +68,9 @@ def coordinator_agent(state):
         }
         state["decision"] = locked_message
         state["final_response"] = locked_message
+        log_event(thread_id=thread_id, employee_id=employee_id, agent_name="Coordinator",
+                   action="coordinator_decision", duration_ms=int((time.time() - start_time) * 1000),
+                   detail="finish: session locked after earlier escalation/rejection")
         return state
 
     # Deterministic gate: if Analysis just completed and the request is genuinely
@@ -91,6 +99,9 @@ def coordinator_agent(state):
                 "next_agent": None,
                 "reasoning": "Request is mixed; awaiting employee's choice between partial approval and full escalation.",
             }
+            log_event(thread_id=thread_id, employee_id=employee_id, agent_name="Coordinator",
+                       action="coordinator_decision", duration_ms=int((time.time() - start_time) * 1000),
+                       detail="finish: mixed-conflict gate, awaiting employee choice")
             return state
 
     # Deterministic safety check — no LLM judgment for loop protection
@@ -104,6 +115,10 @@ def coordinator_agent(state):
                 "reasoning": f"{failed_agent} failed after {current_retries} retr{'y' if current_retries == 1 else 'ies'}; retry limit reached. Ending workflow gracefully.",
             }
             state["plan"] = state.get("plan") or ["planning", "research", "analysis", "decision"]
+            log_event(thread_id=thread_id, employee_id=employee_id, agent_name="Coordinator",
+                       action="coordinator_decision", status="failure",
+                       duration_ms=int((time.time() - start_time) * 1000),
+                       detail=f"finish: {failed_agent} exceeded retry limit ({current_retries})")
             return state
 
     task = (
@@ -133,4 +148,7 @@ def coordinator_agent(state):
 
     state["plan"] = state.get("plan") or ["planning", "research", "analysis", "decision"]
     state["coordinator_decision"] = parsed
+    log_event(thread_id=thread_id, employee_id=employee_id, agent_name="Coordinator",
+               action="coordinator_decision", duration_ms=int((time.time() - start_time) * 1000),
+               detail=f"{parsed.get('action')} -> {parsed.get('next_agent')}: {parsed.get('reasoning', '')}")
     return state

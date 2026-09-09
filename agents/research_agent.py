@@ -1,7 +1,9 @@
 import json
+import time
 from langchain_core.messages import ToolMessage
 from agents.base_agent import Agent
 from tools.research_tools import fetch_leave_balance, fetch_leave_history, fetch_team_calendar, fetch_department_size, fetch_past_decisions, fetch_holidays
+from observability.audit_logger import log_event
 
 research_worker = Agent(
     name="Research Agent",
@@ -29,6 +31,11 @@ research_worker = Agent(
 
 def research_agent(state):
     state["error"] = None
+    thread_id = state.get("thread_id")
+    employee_id = state.get("employee_id")
+    start_time = time.time()
+    log_event(thread_id=thread_id, employee_id=employee_id, agent_name="Research Agent",
+               action="agent_started")
     try:
         task = (
             f"Employee ID: {state['employee_id']}. "
@@ -55,6 +62,8 @@ def research_agent(state):
                 except (json.JSONDecodeError, TypeError):
                     content = msg.content
                 raw_data[tool_name] = content
+                log_event(thread_id=thread_id, employee_id=employee_id, agent_name="Research Agent",
+                           action="tool_called", tool_name=tool_name)
 
         if "fetch_department_size" not in raw_data:
             department = None
@@ -63,6 +72,9 @@ def research_agent(state):
             if department:
                 raw_result = fetch_department_size.invoke({"department": department})
                 raw_data["fetch_department_size"] = json.loads(raw_result)
+                log_event(thread_id=thread_id, employee_id=employee_id, agent_name="Research Agent",
+                           action="tool_called", tool_name="fetch_department_size",
+                           detail="called directly, LLM omitted it")
 
         if "fetch_leave_balance" in raw_data and isinstance(raw_data["fetch_leave_balance"], dict):
             if raw_data["fetch_leave_balance"].get("error"):
@@ -75,4 +87,14 @@ def research_agent(state):
         state["completed_steps"] = state.get("completed_steps", []) + ["research"]
     except Exception as e:
         state["error"] = f"research: {str(e)}"
+
+    duration_ms = int((time.time() - start_time) * 1000)
+    if state["error"]:
+        log_event(thread_id=thread_id, employee_id=employee_id, agent_name="Research Agent",
+                   action="agent_failed", status="failure", duration_ms=duration_ms, detail=state["error"])
+    else:
+        tools_used = list(state.get("research", {}).get("raw_data", {}).keys())
+        log_event(thread_id=thread_id, employee_id=employee_id, agent_name="Research Agent",
+                   action="agent_completed", duration_ms=duration_ms,
+                   detail=f"tools used: {', '.join(tools_used)}")
     return state

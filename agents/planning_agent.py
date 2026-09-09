@@ -1,8 +1,10 @@
 import json
+import time
 from datetime import date
 from agents.base_agent import Agent
 from db.queries import get_sessions_for_employee
 from agents_logic.policy_rules import find_own_overlap_conflicts
+from observability.audit_logger import log_event
 
 planning_worker = Agent(
     name="Planning Agent",
@@ -27,6 +29,7 @@ planning_worker = Agent(
 def load_policy_document():
     with open("data/leave_policy.txt", "r") as f:
         return f.read()
+
 def check_own_date_overlap(employee_id: str, start_date: str, end_date: str) -> str | None:
     """
     Check whether the requested date range overlaps any of this employee's own
@@ -50,6 +53,11 @@ def check_own_date_overlap(employee_id: str, start_date: str, end_date: str) -> 
 
 def planning_agent(state):
     state["error"] = None
+    thread_id = state.get("thread_id")
+    employee_id = state.get("employee_id")
+    start_time = time.time()
+    log_event(thread_id=thread_id, employee_id=employee_id, agent_name="Planning Agent",
+               action="agent_started")
     try:
         today = date.today().isoformat()
 
@@ -69,11 +77,18 @@ def planning_agent(state):
 
             if not state.get("start_date") or not state.get("end_date"):
                 state["error"] = "planning: Structured request was missing start_date or end_date."
-            return state
+            else:
+                overlap_error = check_own_date_overlap(state["employee_id"], state["start_date"], state["end_date"])
+                if overlap_error:
+                    state["error"] = overlap_error
 
-            overlap_error = check_own_date_overlap(state["employee_id"], state["start_date"], state["end_date"])
-            if overlap_error:
-                state["error"] = overlap_error
+            duration_ms = int((time.time() - start_time) * 1000)
+            if state["error"]:
+                log_event(thread_id=thread_id, employee_id=employee_id, agent_name="Planning Agent",
+                           action="agent_failed", status="failure", duration_ms=duration_ms, detail=state["error"])
+            else:
+                log_event(thread_id=thread_id, employee_id=employee_id, agent_name="Planning Agent",
+                           action="agent_completed", duration_ms=duration_ms, detail="structured request, LLM extraction skipped")
             return state
 
         existing_context = ""
@@ -143,4 +158,13 @@ def planning_agent(state):
 
     except Exception as e:
         state["error"] = f"planning: {str(e)}"
+
+    duration_ms = int((time.time() - start_time) * 1000)
+    if state["error"]:
+        log_event(thread_id=thread_id, employee_id=employee_id, agent_name="Planning Agent",
+                   action="agent_failed", status="failure", duration_ms=duration_ms, detail=state["error"])
+    else:
+        log_event(thread_id=thread_id, employee_id=employee_id, agent_name="Planning Agent",
+                   action="agent_completed", duration_ms=duration_ms,
+                   detail=f"dates: {state.get('start_date')} to {state.get('end_date')}")
     return state
