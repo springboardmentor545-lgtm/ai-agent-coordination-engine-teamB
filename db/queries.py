@@ -52,23 +52,23 @@ def get_employee_password_hash(employee_id: str) -> str | None:
 
 def insert_audit_log(thread_id: str, agent_name: str, action: str, status: str,
                       employee_id: str | None = None, tool_name: str | None = None,
-                      duration_ms: int | None = None, detail: str | None = None) -> None:
+                      duration_ms: int | None = None, detail: str | None = None,
+                      http_status: int | None = None) -> None:
     """Insert one audit-log row. Never raises — a logging failure must never break a real request."""
     try:
         conn = get_connection()
         cursor = conn.cursor()
         cursor.execute(
             """INSERT INTO audit_logs
-               (thread_id, employee_id, agent_name, action, tool_name, status, duration_ms, detail)
-               VALUES (%s, %s, %s, %s, %s, %s, %s, %s);""",
-            (thread_id, employee_id, agent_name, action, tool_name, status, duration_ms, detail)
+               (thread_id, employee_id, agent_name, action, tool_name, status, duration_ms, detail, http_status)
+               VALUES (%s, %s, %s, %s, %s, %s, %s, %s, %s);""",
+            (thread_id, employee_id, agent_name, action, tool_name, status, duration_ms, detail, http_status)
         )
         conn.commit()
         cursor.close()
         conn.close()
     except Exception:
         pass
-
 
 def get_audit_logs_for_thread(thread_id: str) -> list[dict]:
     """Fetch all audit-log rows for one thread_id, oldest first — powers the per-session Logging view."""
@@ -344,7 +344,6 @@ def credit_leave_balance(employee_id: str, days: int) -> None:
     cursor.close()
     conn.close()
 
-
 def lock_extend_for_session(thread_id: str) -> None:
     """Mark a session as no longer eligible for further extend attempts."""
     conn = get_connection()
@@ -356,3 +355,108 @@ def lock_extend_for_session(thread_id: str) -> None:
     conn.commit()
     cursor.close()
     conn.close()
+
+
+def get_monitoring_stats() -> dict:
+    """
+    Aggregate audit_logs into the system-wide stats shown on the Monitoring page:
+    total requests, per-agent execution counts and average durations, tool call
+    counts, overall success/failure rates, API-level average response time, and
+    an HTTP status code breakdown.
+    """
+    conn = get_connection()
+    cursor = conn.cursor()
+
+    # Total distinct workflow requests (agent-level rows only, excludes the
+    # synthetic per-HTTP-call thread_ids from the middleware)
+    cursor.execute("""
+        SELECT COUNT(DISTINCT thread_id) FROM audit_logs
+        WHERE agent_name != 'API Gateway';
+    """)
+    total_requests = cursor.fetchone()[0]
+
+    # Per-agent execution count and average duration (only completed runs have a duration)
+    cursor.execute("""
+        SELECT agent_name, COUNT(*), AVG(duration_ms)
+        FROM audit_logs
+        WHERE action = 'agent_completed'
+        GROUP BY agent_name;
+    """)
+    agent_stats = [
+        {"agent_name": row[0], "executions": row[1], "avg_duration_ms": round(row[2]) if row[2] else None}
+        for row in cursor.fetchall()
+    ]
+
+    # Tool call counts
+    cursor.execute("""
+        SELECT tool_name, COUNT(*)
+        FROM audit_logs
+        WHERE tool_name IS NOT NULL
+        GROUP BY tool_name
+        ORDER BY COUNT(*) DESC;
+    """)
+    tool_stats = [{"tool_name": row[0], "calls": row[1]} for row in cursor.fetchall()]
+
+    # Overall success/failure counts across all agent-level events
+    cursor.execute("""
+        SELECT status, COUNT(*)
+        FROM audit_logs
+        WHERE agent_name != 'API Gateway'
+        GROUP BY status;
+    """)
+    outcome_counts = {row[0]: row[1] for row in cursor.fetchall()}
+
+    # Overall end-to-end workflow duration: bounded by Coordinator's own first-to-last
+    # timestamp per thread_id. Coordinator only ever runs during the original
+    # /leave-request call (never during a later extend/cancel on the same thread_id),
+    # so this correctly excludes unrelated later activity on the same session.
+    cursor.execute("""
+        SELECT AVG(span) FROM (
+            SELECT thread_id, EXTRACT(EPOCH FROM (MAX(created_at) - MIN(created_at))) * 1000 AS span
+            FROM audit_logs
+            WHERE agent_name = 'Coordinator'
+            GROUP BY thread_id
+        ) AS spans;
+    """)
+    row = cursor.fetchone()
+    avg_overall_workflow_ms = round(row[0]) if row[0] else None
+
+    # API-level average response time (from the middleware's http_request rows)
+    cursor.execute("""
+        SELECT AVG(duration_ms) FROM audit_logs WHERE agent_name = 'API Gateway';
+    """)
+    row = cursor.fetchone()
+    avg_api_response_ms = round(row[0]) if row[0] else None
+
+    # HTTP status code breakdown
+    cursor.execute("""
+        SELECT http_status, COUNT(*)
+        FROM audit_logs
+        WHERE http_status IS NOT NULL
+        GROUP BY http_status
+        ORDER BY http_status;
+    """)
+    http_status_breakdown = [{"status_code": row[0], "count": row[1]} for row in cursor.fetchall()]
+
+    # Total HTTP requests and API-level success/failure
+    cursor.execute("""
+        SELECT status, COUNT(*)
+        FROM audit_logs
+        WHERE agent_name = 'API Gateway'
+        GROUP BY status;
+    """)
+    api_outcome_counts = {row[0]: row[1] for row in cursor.fetchall()}
+
+    cursor.close()
+    conn.close()
+
+    return {
+        "total_requests": total_requests,
+        "avg_overall_workflow_ms": avg_overall_workflow_ms,
+        "avg_api_response_ms": avg_api_response_ms,
+        "agent_stats": agent_stats,
+        "tool_stats": tool_stats,
+        "outcome_counts": outcome_counts,
+        "api_outcome_counts": api_outcome_counts,
+        "http_status_breakdown": http_status_breakdown,
+    }
