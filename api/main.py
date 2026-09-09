@@ -3,7 +3,7 @@ import time
 from observability.audit_logger import log_event
 from db.queries import get_session, update_session_cancelled_dates, credit_leave_balance, get_holidays_in_range
 from agents_logic.policy_rules import compute_cancellation, get_own_reserved_dates
-from db.queries import get_audit_logs_for_thread
+from db.queries import get_audit_logs_for_thread, get_monitoring_stats
 from db.queries import get_sessions_for_employee
 from services.mixed_resolution_service import resolve_mixed_request
 from services.extend_service import process_extension
@@ -18,10 +18,43 @@ from auth.dependencies import get_current_employee
 from fastapi import Depends
 from graph.leave_approval_graph import leave_approval_graph
 from fastapi.staticfiles import StaticFiles
+from auth.security import decode_access_token
 
 app = FastAPI(title="Enterprise Workflow Platform with Decision Automation System - Milestone 3")
 
 app.mount("/app", StaticFiles(directory="frontend", html=True), name="frontend")
+
+@app.middleware("http")
+async def log_http_requests(request: Request, call_next):
+    """
+    Logs every HTTP request/response cycle - method, path, status code, and
+    true wall-clock duration (including auth, validation, everything) - for
+    the Monitoring page's API-level stats. Runs for every endpoint automatically,
+    no per-endpoint code needed.
+    """
+    start_time = time.time()
+
+    employee_id = None
+    auth_header = request.headers.get("authorization", "")
+    if auth_header.startswith("Bearer "):
+        try:
+            employee_id = decode_access_token(auth_header[len("Bearer "):])
+        except Exception:
+            pass
+
+    response = await call_next(request)
+
+    duration_ms = int((time.time() - start_time) * 1000)
+    status = "success" if response.status_code < 400 else "failure"
+    request_id = f"http-{uuid.uuid4()}"
+
+    log_event(
+        thread_id=request_id, employee_id=employee_id, agent_name="API Gateway",
+        action="http_request", status=status, duration_ms=duration_ms,
+        http_status=response.status_code, detail=f"{request.method} {request.url.path}"
+    )
+
+    return response
 
 @app.exception_handler(RequestValidationError)
 async def validation_exception_handler(request: Request, exc: RequestValidationError):
@@ -252,3 +285,8 @@ def get_session_audit_logs(thread_id: str, employee_id: str = Depends(get_curren
 
     logs = get_audit_logs_for_thread(logs_thread_id)
     return {"thread_id": thread_id, "logs": logs}
+
+
+@app.get("/monitoring-stats")
+def monitoring_stats(employee_id: str = Depends(get_current_employee)):
+    return get_monitoring_stats()
