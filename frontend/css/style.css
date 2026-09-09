@@ -270,3 +270,53 @@ button.danger {
   width: 100%;
   padding: 10px;
 }
+
+.icon-btn {
+  width: auto;
+  padding: 4px 10px;
+  font-size: 0.8em;
+  background: #6c757d;
+  float: right;
+}
+
+.log-panel {
+  max-width: 600px;
+  text-align: left;
+}
+
+.log-panel-scroll {
+  max-height: 400px;
+  overflow-y: auto;
+  margin-top: 10px;
+  padding-right: 5px;
+}
+
+.log-row {
+  border-left: 3px solid #28a745;
+  background: #f8f9fa;
+  padding: 8px 10px;
+  margin-bottom: 8px;
+  border-radius: 4px;
+  font-size: 0.9em;
+}
+
+.log-row-failed {
+  border-left-color: #d9534f;
+  background: #fdf1f0;
+}
+
+.log-row-header {
+  font-size: 0.95em;
+}
+
+.log-timestamp {
+  color: #888;
+  font-size: 0.75em;
+  margin-top: 2px;
+}
+
+.log-detail {
+  margin-top: 4px;
+  font-size: 0.85em;
+  color: #444;
+}

@@ -89,6 +89,7 @@ function buildSessionCard(session, holidaySet) {
   card.innerHTML = `
     <strong>${session.start_date} to ${session.end_date}</strong>
     <span class="outcome outcome-${session.decision_outcome}">${session.decision_outcome}</span>
+    <button class="icon-btn logs-btn" title="View audit log for this session">📋 Logs</button>
     <p>${session.reason || ""}</p>
     ${cancelledNote}
     <p class="thread-id">Thread: ${session.thread_id}</p>
@@ -146,6 +147,20 @@ document.getElementById("sessions-list").addEventListener("click", async functio
   if (!card) return;
   const threadId = card.dataset.threadId;
   const messageEl = card.querySelector(".card-message");
+
+
+  if (event.target.classList.contains("logs-btn")) {
+    const response = await apiFetch(`/sessions/${threadId}/audit-logs`);
+    if (!response) return;
+    const data = await response.json();
+    if (data.error) {
+      messageEl.textContent = data.error;
+      messageEl.className = "card-message error";
+      return;
+    }
+    showLogPanel(threadId, data.logs);
+    return;
+  }
 
   if (event.target.classList.contains("extend-btn")) {
     const date = event.target.dataset.date;

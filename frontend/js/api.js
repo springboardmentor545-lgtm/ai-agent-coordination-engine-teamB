@@ -116,3 +116,43 @@ function showChoiceModal(message, choices, onChoice) {
     });
   });
 }
+
+
+function showLogPanel(threadId, logs) {
+  const overlay = document.createElement("div");
+  overlay.className = "modal-overlay";
+
+  let rowsHtml;
+  if (!logs || logs.length === 0) {
+    rowsHtml = "<p>No audit log entries found for this session.</p>";
+  } else {
+    rowsHtml = logs.map(function (row) {
+      const failedClass = row.status === "failure" ? " log-row-failed" : "";
+      const toolPart = row.tool_name ? ` (tool: ${row.tool_name})` : "";
+      const durationPart = row.duration_ms !== null && row.duration_ms !== undefined ? ` — ${row.duration_ms}ms` : "";
+      const detailPart = row.detail ? `<div class="log-detail">${row.detail}</div>` : "";
+      return `
+        <div class="log-row${failedClass}">
+          <div class="log-row-header">
+            <strong>${row.agent_name}</strong> — ${row.action}${toolPart}${durationPart}
+          </div>
+          <div class="log-timestamp">${row.created_at}</div>
+          ${detailPart}
+        </div>
+      `;
+    }).join("");
+  }
+
+  overlay.innerHTML = `
+    <div class="modal-box log-panel">
+      <h3>Audit Log — Thread ${threadId}</h3>
+      <div class="log-panel-scroll">${rowsHtml}</div>
+      <button class="modal-ok-btn">Close</button>
+    </div>
+  `;
+  document.body.appendChild(overlay);
+
+  overlay.querySelector(".modal-ok-btn").addEventListener("click", function () {
+    document.body.removeChild(overlay);
+  });
+}
