@@ -13,16 +13,46 @@ from fastapi.responses import JSONResponse
 from pydantic import BaseModel
 from typing import Optional
 from db.queries import save_long_term_memory, get_employee_password_hash, get_employee_by_email
-from auth.security import verify_password, create_access_token
+from auth.security import verify_password, create_access_token, decode_access_token
 from auth.dependencies import get_current_employee
 from fastapi import Depends
 from graph.leave_approval_graph import leave_approval_graph
 from fastapi.staticfiles import StaticFiles
-from auth.security import decode_access_token
+from slowapi import Limiter
+from slowapi.util import get_remote_address
+from slowapi.errors import RateLimitExceeded
 
-app = FastAPI(title="Enterprise Workflow Platform with Decision Automation System - Milestone 3")
+
+def rate_limit_key(request: Request) -> str:
+    """
+    Rate-limit key: uses the employee_id from a valid JWT when present, so each
+    employee gets their own limit regardless of shared IPs (e.g. office Wi-Fi).
+    Falls back to IP address when there's no valid token yet (e.g. /login itself).
+    """
+    auth_header = request.headers.get("authorization", "")
+    if auth_header.startswith("Bearer "):
+        try:
+            return decode_access_token(auth_header[len("Bearer "):])
+        except Exception:
+            pass
+    return get_remote_address(request)
+
+
+limiter = Limiter(key_func=rate_limit_key)
+
+app = FastAPI(title="Enterprise Workflow Platform with Decision Automation System - Milestone 4")
+app.state.limiter = limiter
 
 app.mount("/app", StaticFiles(directory="frontend", html=True), name="frontend")
+
+
+@app.exception_handler(RateLimitExceeded)
+async def rate_limit_exceeded_handler(request: Request, exc: RateLimitExceeded):
+    return JSONResponse(
+        status_code=429,
+        content={"error": "Too many requests. Please slow down and try again shortly."}
+    )
+
 
 @app.middleware("http")
 async def log_http_requests(request: Request, call_next):
@@ -30,7 +60,8 @@ async def log_http_requests(request: Request, call_next):
     Logs every HTTP request/response cycle - method, path, status code, and
     true wall-clock duration (including auth, validation, everything) - for
     the Monitoring page's API-level stats. Runs for every endpoint automatically,
-    no per-endpoint code needed.
+    no per-endpoint code needed. Also captures 429s from rate limiting, since
+    this middleware wraps the whole request/response cycle including exception handlers.
     """
     start_time = time.time()
 
@@ -55,6 +86,7 @@ async def log_http_requests(request: Request, call_next):
     )
 
     return response
+
 
 @app.exception_handler(RequestValidationError)
 async def validation_exception_handler(request: Request, exc: RequestValidationError):
@@ -105,43 +137,40 @@ class LoginResponse(BaseModel):
 def root():
     return {"message": "Leave Approval multi-agent system is running. Visit /docs to test it."}
 
+
 @app.post("/login", response_model=LoginResponse)
-def login(request: LoginRequest):
-    employee = get_employee_by_email(request.email)
+@limiter.limit("5/minute")
+def login(request: Request, payload: LoginRequest):
+    employee = get_employee_by_email(payload.email)
     if employee is None:
         return JSONResponse(status_code=401, content={"error": "Invalid email or password."})
 
-    if not verify_password(request.password, employee["password_hash"]):
+    if not verify_password(payload.password, employee["password_hash"]):
         return JSONResponse(status_code=401, content={"error": "Invalid email or password."})
 
     token = create_access_token(employee["employee_id"])
     return LoginResponse(access_token=token)
 
-    if not verify_password(request.password, stored_hash):
-        return JSONResponse(status_code=401, content={"error": "Invalid employee ID or password."})
-
-    token = create_access_token(request.employee_id)
-    return LoginResponse(access_token=token)
-
 @app.post("/leave-request", response_model=LeaveResponse)
-def submit_leave_request(request: LeaveRequest, employee_id: str = Depends(get_current_employee)):
-    thread_id = request.thread_id or str(uuid.uuid4())
+@limiter.limit("10/minute")
+def submit_leave_request(request: Request, payload: LeaveRequest, employee_id: str = Depends(get_current_employee)):
+    thread_id = payload.thread_id or str(uuid.uuid4())
 
-    structured_mode = request.start_date is not None and request.end_date is not None
+    structured_mode = payload.start_date is not None and payload.end_date is not None
 
-    if not structured_mode and not request.user_query:
+    if not structured_mode and not payload.user_query:
         return JSONResponse(
             status_code=422,
             content={"error": "Provide either start_date and end_date, or a free-text user_query."}
         )
 
     if structured_mode:
-        reason = request.reason or "not specified"
+        reason = payload.reason or "not specified"
         initial_state = {
-            "user_query": f"Leave request from {request.start_date} to {request.end_date}. Reason: {reason}.",
+            "user_query": f"Leave request from {payload.start_date} to {payload.end_date}. Reason: {reason}.",
             "structured_request": True,
-            "start_date": request.start_date,
-            "end_date": request.end_date,
+            "start_date": payload.start_date,
+            "end_date": payload.end_date,
             "fetched_data": {"reason": reason},
             "employee_id": employee_id,
             "thread_id": thread_id,
@@ -151,7 +180,7 @@ def submit_leave_request(request: LeaveRequest, employee_id: str = Depends(get_c
         }
     else:
         initial_state = {
-            "user_query": request.user_query,
+            "user_query": payload.user_query,
             "employee_id": employee_id,
             "thread_id": thread_id,
             "completed_steps": [],
@@ -179,24 +208,28 @@ def submit_leave_request(request: LeaveRequest, employee_id: str = Depends(get_c
     )
 
 @app.get("/sessions")
-def list_sessions(employee_id: str = Depends(get_current_employee)):
+@limiter.limit("60/minute")
+def list_sessions(request: Request, employee_id: str = Depends(get_current_employee)):
     sessions = get_sessions_for_employee(employee_id)
     return {"employee_id": employee_id, "sessions": sessions}
 
 @app.get("/holidays")
-def list_holidays(start_date: str, end_date: str, employee_id: str = Depends(get_current_employee)):
+@limiter.limit("60/minute")
+def list_holidays(request: Request, start_date: str, end_date: str, employee_id: str = Depends(get_current_employee)):
     holidays = get_holidays_in_range(start_date, end_date)
     return {"holidays": holidays}
 
 
 @app.get("/my-leave-dates")
-def my_leave_dates(start_date: str, end_date: str, employee_id: str = Depends(get_current_employee)):
+@limiter.limit("60/minute")
+def my_leave_dates(request: Request, start_date: str, end_date: str, employee_id: str = Depends(get_current_employee)):
     sessions = get_sessions_for_employee(employee_id)
     reserved = get_own_reserved_dates(sessions, start_date, end_date)
     return {"reserved_dates": reserved}
 
 @app.post("/sessions/{thread_id}/cancel")
-def cancel_leave(thread_id: str, request: CancelRequest, employee_id: str = Depends(get_current_employee)):
+@limiter.limit("60/minute")
+def cancel_leave(thread_id: str, request: Request, payload: CancelRequest, employee_id: str = Depends(get_current_employee)):
     start_time = time.time()
     session = get_session(thread_id)
     if session is None:
@@ -218,7 +251,7 @@ def cancel_leave(thread_id: str, request: CancelRequest, employee_id: str = Depe
         session["start_date"],
         session["end_date"],
         session["cancelled_dates"],
-        request.dates_to_cancel,
+        payload.dates_to_cancel,
         holidays,
     )
 
@@ -235,48 +268,48 @@ def cancel_leave(thread_id: str, request: CancelRequest, employee_id: str = Depe
         "decision": "APPROVE",
         "start_date": session["start_date"],
         "end_date": session["end_date"],
-        "summary": f"Partially cancelled: {request.dates_to_cancel} removed. Remaining active dates: {result['remaining_dates']}.",
+        "summary": f"Partially cancelled: {payload.dates_to_cancel} removed. Remaining active dates: {result['remaining_dates']}.",
     })
 
     log_event(thread_id=thread_id, employee_id=employee_id, agent_name="Cancel Service",
                action="leave_cancelled", duration_ms=int((time.time() - start_time) * 1000),
-               detail=f"cancelled {request.dates_to_cancel}, {result['working_days_credited']} day(s) credited")
+               detail=f"cancelled {payload.dates_to_cancel}, {result['working_days_credited']} day(s) credited")
 
     return {
         "thread_id": thread_id,
         "cancelled_dates": result["updated_cancelled_dates"],
         "remaining_dates": result["remaining_dates"],
         "working_days_credited": result["working_days_credited"],
-        "message": f"Successfully cancelled {request.dates_to_cancel}. {result['working_days_credited']} day(s) credited back to your leave balance.",
+        "message": f"Successfully cancelled {payload.dates_to_cancel}. {result['working_days_credited']} day(s) credited back to your leave balance.",
     }
 
 @app.post("/sessions/{thread_id}/extend")
-def extend_leave(thread_id: str, request: ExtendRequest, employee_id: str = Depends(get_current_employee)):
-    if request.start_date != request.end_date:
+@limiter.limit("10/minute")
+def extend_leave(thread_id: str, request: Request, payload: ExtendRequest, employee_id: str = Depends(get_current_employee)):
+    if payload.start_date != payload.end_date:
         return {"error": "Extensions are limited to a single day. Please select just one date on the calendar."}
-    result = process_extension(thread_id, request.start_date, employee_id)
+    result = process_extension(thread_id, payload.start_date, employee_id)
     if result.get("error") == "You do not have permission to modify this session.":
         return JSONResponse(status_code=403, content=result)
     return result
 
 @app.post("/sessions/{thread_id}/resolve-mixed")
-def resolve_mixed(thread_id: str, request: MixedChoiceRequest, employee_id: str = Depends(get_current_employee)):
-    result = resolve_mixed_request(thread_id, request.choice, employee_id)
+@limiter.limit("10/minute")
+def resolve_mixed(thread_id: str, request: Request, payload: MixedChoiceRequest, employee_id: str = Depends(get_current_employee)):
+    result = resolve_mixed_request(thread_id, payload.choice, employee_id)
     if result.get("error") == "You do not have permission to modify this session.":
         return JSONResponse(status_code=403, content=result)
     return result
 
 @app.get("/sessions/{thread_id}/audit-logs")
-def get_session_audit_logs(thread_id: str, employee_id: str = Depends(get_current_employee)):
+@limiter.limit("60/minute")
+def get_session_audit_logs(request: Request, thread_id: str, employee_id: str = Depends(get_current_employee)):
     session = get_session(thread_id)
     if session is None:
         return JSONResponse(status_code=404, content={"error": "Session not found."})
     if session["employee_id"] != employee_id:
         return JSONResponse(status_code=403, content={"error": "You do not have permission to view this session's logs."})
 
-    # Mixed-conflict split sessions ("{thread}-approved" / "{thread}-escalated") don't have
-    # their own audit trail — all agent/tool activity was logged under the original thread_id
-    # before the split happened. Strip the suffix so the logs still resolve correctly.
     logs_thread_id = thread_id
     for suffix in ("-approved", "-escalated"):
         if logs_thread_id.endswith(suffix):
@@ -288,5 +321,6 @@ def get_session_audit_logs(thread_id: str, employee_id: str = Depends(get_curren
 
 
 @app.get("/monitoring-stats")
-def monitoring_stats(employee_id: str = Depends(get_current_employee)):
+@limiter.limit("30/minute")
+def monitoring_stats(request: Request, employee_id: str = Depends(get_current_employee)):
     return get_monitoring_stats()
