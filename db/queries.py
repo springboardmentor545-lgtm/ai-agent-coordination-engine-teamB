@@ -50,6 +50,48 @@ def get_employee_password_hash(employee_id: str) -> str | None:
         return None
     return row[0]
 
+def insert_audit_log(thread_id: str, agent_name: str, action: str, status: str,
+                      employee_id: str | None = None, tool_name: str | None = None,
+                      duration_ms: int | None = None, detail: str | None = None) -> None:
+    """Insert one audit-log row. Never raises — a logging failure must never break a real request."""
+    try:
+        conn = get_connection()
+        cursor = conn.cursor()
+        cursor.execute(
+            """INSERT INTO audit_logs
+               (thread_id, employee_id, agent_name, action, tool_name, status, duration_ms, detail)
+               VALUES (%s, %s, %s, %s, %s, %s, %s, %s);""",
+            (thread_id, employee_id, agent_name, action, tool_name, status, duration_ms, detail)
+        )
+        conn.commit()
+        cursor.close()
+        conn.close()
+    except Exception:
+        pass
+
+
+def get_audit_logs_for_thread(thread_id: str) -> list[dict]:
+    """Fetch all audit-log rows for one thread_id, oldest first — powers the per-session Logging view."""
+    conn = get_connection()
+    cursor = conn.cursor()
+    cursor.execute(
+        """SELECT agent_name, action, tool_name, status, duration_ms, detail, created_at
+           FROM audit_logs WHERE thread_id = %s ORDER BY created_at ASC;""",
+        (thread_id,)
+    )
+    rows = cursor.fetchall()
+    cursor.close()
+    conn.close()
+    return [
+        {
+            "agent_name": r[0], "action": r[1], "tool_name": r[2],
+            "status": r[3], "duration_ms": r[4], "detail": r[5],
+            "created_at": r[6].isoformat(),
+        }
+        for r in rows
+    ]
+
+
 def get_employee_by_email(email: str) -> dict | None:
     """Look up an employee's ID and password hash by email, for login. Returns None if no match."""
     conn = get_connection()

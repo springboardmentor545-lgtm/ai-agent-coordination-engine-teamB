@@ -47,3 +47,17 @@ CREATE TABLE IF NOT EXISTS sessions (
     created_at TIMESTAMP NOT NULL DEFAULT NOW(),
     updated_at TIMESTAMP NOT NULL DEFAULT NOW()
 );
+
+
+CREATE TABLE IF NOT EXISTS audit_logs (
+    id SERIAL PRIMARY KEY,
+    thread_id VARCHAR(100) NOT NULL,
+    employee_id VARCHAR(20),
+    agent_name VARCHAR(50) NOT NULL,
+    action VARCHAR(50) NOT NULL,
+    tool_name VARCHAR(100),
+    status VARCHAR(20) NOT NULL,
+    duration_ms INTEGER,
+    detail TEXT,
+    created_at TIMESTAMP NOT NULL DEFAULT NOW()
+);
