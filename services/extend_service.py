@@ -1,3 +1,4 @@
+import time
 from datetime import date as _date
 from agents.research_agent import research_agent
 from agents.analysis_agent import analysis_agent
@@ -5,6 +6,7 @@ from agents.decision_agent import decision_worker
 from agents_logic.policy_rules import validate_single_day_extension, detect_decision_outcome
 from db.queries import get_session, create_or_update_session, deduct_leave_balance, record_leave_history, save_long_term_memory
 from db.queries import lock_extend_for_session, get_holidays_in_range
+from observability.audit_logger import log_event
 
 
 def process_extension(thread_id: str, new_date: str, employee_id: str) -> dict:
@@ -13,14 +15,23 @@ def process_extension(thread_id: str, new_date: str, employee_id: str) -> dict:
     by exactly one day, either immediately before or immediately after the
     current approved range. Only modifies the session if the extension is APPROVED.
     """
+    start_time = time.time()
     session = get_session(thread_id)
     if session is None:
+        log_event(thread_id=thread_id, employee_id=employee_id, agent_name="Extend Service",
+                   action="extend_denied", status="failure", detail="session not found")
         return {"error": "Session not found."}
     if session["employee_id"] != employee_id:
+        log_event(thread_id=thread_id, employee_id=employee_id, agent_name="Extend Service",
+                   action="extend_denied", status="failure", detail="ownership check failed")
         return {"error": "You do not have permission to modify this session."}
     if session["decision_outcome"] != "APPROVE":
+        log_event(thread_id=thread_id, employee_id=employee_id, agent_name="Extend Service",
+                   action="extend_denied", status="failure", detail="session is not an approved leave")
         return {"error": "Only approved leave sessions can be extended."}
     if session.get("extend_locked"):
+        log_event(thread_id=thread_id, employee_id=employee_id, agent_name="Extend Service",
+                   action="extend_denied", status="failure", detail="extend is locked for this session")
         return {"error": "Extension is no longer available for this session. You can still cancel part or all of your approved leave."}
 
     holidays_in_window = set(get_holidays_in_range(new_date, new_date))
@@ -28,6 +39,8 @@ def process_extension(thread_id: str, new_date: str, employee_id: str) -> dict:
         session["start_date"], session["end_date"], new_date, holidays=holidays_in_window
     )
     if not is_valid:
+        log_event(thread_id=thread_id, employee_id=employee_id, agent_name="Extend Service",
+                   action="extend_denied", status="failure", detail=error_message)
         return {"error": error_message}
 
     delta_state = {
@@ -95,6 +108,11 @@ def process_extension(thread_id: str, new_date: str, employee_id: str) -> dict:
             f"Extending this leave is no longer available, but you can still cancel part "
             f"or all of your existing approved leave if needed."
         )
+
+    log_event(thread_id=thread_id, employee_id=employee_id, agent_name="Extend Service",
+               action="extend_resolved", duration_ms=int((time.time() - start_time) * 1000),
+               detail=f"outcome: {outcome}")
+
     return {
         "thread_id": thread_id,
         "outcome": outcome,

@@ -1,6 +1,9 @@
 import uuid
+import time
+from observability.audit_logger import log_event
 from db.queries import get_session, update_session_cancelled_dates, credit_leave_balance, get_holidays_in_range
 from agents_logic.policy_rules import compute_cancellation, get_own_reserved_dates
+from db.queries import get_audit_logs_for_thread
 from db.queries import get_sessions_for_employee
 from services.mixed_resolution_service import resolve_mixed_request
 from services.extend_service import process_extension
@@ -161,12 +164,19 @@ def my_leave_dates(start_date: str, end_date: str, employee_id: str = Depends(ge
 
 @app.post("/sessions/{thread_id}/cancel")
 def cancel_leave(thread_id: str, request: CancelRequest, employee_id: str = Depends(get_current_employee)):
+    start_time = time.time()
     session = get_session(thread_id)
     if session is None:
+        log_event(thread_id=thread_id, employee_id=employee_id, agent_name="Cancel Service",
+                   action="cancel_denied", status="failure", detail="session not found")
         return {"error": "Session not found."}
     if session["employee_id"] != employee_id:
+        log_event(thread_id=thread_id, employee_id=employee_id, agent_name="Cancel Service",
+                   action="cancel_denied", status="failure", detail="ownership check failed")
         return JSONResponse(status_code=403, content={"error": "You do not have permission to modify this session."})
     if session["decision_outcome"] != "APPROVE":
+        log_event(thread_id=thread_id, employee_id=employee_id, agent_name="Cancel Service",
+                   action="cancel_denied", status="failure", detail="session is not an approved leave")
         return {"error": "Only approved leave sessions can be cancelled."}
 
     holidays = set(get_holidays_in_range(session["start_date"], session["end_date"]))
@@ -180,6 +190,8 @@ def cancel_leave(thread_id: str, request: CancelRequest, employee_id: str = Depe
     )
 
     if not result["valid"]:
+        log_event(thread_id=thread_id, employee_id=employee_id, agent_name="Cancel Service",
+                   action="cancel_denied", status="failure", detail=result["error"])
         return {"error": result["error"]}
 
     update_session_cancelled_dates(thread_id, result["updated_cancelled_dates"])
@@ -192,6 +204,10 @@ def cancel_leave(thread_id: str, request: CancelRequest, employee_id: str = Depe
         "end_date": session["end_date"],
         "summary": f"Partially cancelled: {request.dates_to_cancel} removed. Remaining active dates: {result['remaining_dates']}.",
     })
+
+    log_event(thread_id=thread_id, employee_id=employee_id, agent_name="Cancel Service",
+               action="leave_cancelled", duration_ms=int((time.time() - start_time) * 1000),
+               detail=f"cancelled {request.dates_to_cancel}, {result['working_days_credited']} day(s) credited")
 
     return {
         "thread_id": thread_id,
@@ -216,3 +232,23 @@ def resolve_mixed(thread_id: str, request: MixedChoiceRequest, employee_id: str 
     if result.get("error") == "You do not have permission to modify this session.":
         return JSONResponse(status_code=403, content=result)
     return result
+
+@app.get("/sessions/{thread_id}/audit-logs")
+def get_session_audit_logs(thread_id: str, employee_id: str = Depends(get_current_employee)):
+    session = get_session(thread_id)
+    if session is None:
+        return JSONResponse(status_code=404, content={"error": "Session not found."})
+    if session["employee_id"] != employee_id:
+        return JSONResponse(status_code=403, content={"error": "You do not have permission to view this session's logs."})
+
+    # Mixed-conflict split sessions ("{thread}-approved" / "{thread}-escalated") don't have
+    # their own audit trail — all agent/tool activity was logged under the original thread_id
+    # before the split happened. Strip the suffix so the logs still resolve correctly.
+    logs_thread_id = thread_id
+    for suffix in ("-approved", "-escalated"):
+        if logs_thread_id.endswith(suffix):
+            logs_thread_id = logs_thread_id[: -len(suffix)]
+            break
+
+    logs = get_audit_logs_for_thread(logs_thread_id)
+    return {"thread_id": thread_id, "logs": logs}

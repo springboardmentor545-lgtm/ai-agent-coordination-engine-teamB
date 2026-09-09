@@ -1,5 +1,7 @@
+import time
 from graph.leave_approval_graph import leave_approval_graph
 from db.queries import create_or_update_session, deduct_leave_balance, record_leave_history, save_long_term_memory
+from observability.audit_logger import log_event
 
 
 def resolve_mixed_request(thread_id: str, choice: str, requesting_employee_id: str) -> dict:
@@ -7,15 +9,20 @@ def resolve_mixed_request(thread_id: str, choice: str, requesting_employee_id: s
     Resolve a pending mixed-conflict choice for a session.
     choice must be 'partial' or 'escalate_all'.
     """
+    start_time = time.time()
     config = {"configurable": {"thread_id": thread_id}}
     snapshot = leave_approval_graph.get_state(config)
     state = snapshot.values
 
     if not state.get("mixed_choice_pending"):
+        log_event(thread_id=thread_id, employee_id=requesting_employee_id, agent_name="Mixed Resolution Service",
+                   action="resolve_denied", status="failure", detail="no pending mixed-conflict choice")
         return {"error": "No pending mixed-conflict choice found for this session."}
 
     employee_id = state["employee_id"]
     if employee_id != requesting_employee_id:
+        log_event(thread_id=thread_id, employee_id=requesting_employee_id, agent_name="Mixed Resolution Service",
+                   action="resolve_denied", status="failure", detail="ownership check failed")
         return {"error": "You do not have permission to modify this session."}
 
     split_info = state.get("mixed_split_info")
@@ -58,6 +65,11 @@ def resolve_mixed_request(thread_id: str, choice: str, requesting_employee_id: s
             f"to your manager for review as a separate request."
         )
         leave_approval_graph.update_state(config, {"decision_outcome": "APPROVE", "completed_steps": ["planning", "research", "analysis", "decision"]})
+
+        log_event(thread_id=thread_id, employee_id=employee_id, agent_name="Mixed Resolution Service",
+                   action="mixed_resolved", duration_ms=int((time.time() - start_time) * 1000),
+                   detail=f"partial: approved={approved_thread_id}, escalated={escalated_thread_id}")
+
         return {
             "outcome": "partial",
             "approved_thread_id": approved_thread_id,
@@ -80,6 +92,11 @@ def resolve_mixed_request(thread_id: str, choice: str, requesting_employee_id: s
             f"has been escalated to your manager for review."
         )
         leave_approval_graph.update_state(config, {"decision_outcome": "ESCALATE", "completed_steps": ["planning", "research", "analysis", "decision"]})
+
+        log_event(thread_id=thread_id, employee_id=employee_id, agent_name="Mixed Resolution Service",
+                   action="mixed_resolved", duration_ms=int((time.time() - start_time) * 1000),
+                   detail="escalate_all")
+
         return {
             "outcome": "escalate_all",
             "thread_id": thread_id,
@@ -87,4 +104,6 @@ def resolve_mixed_request(thread_id: str, choice: str, requesting_employee_id: s
         }
 
     else:
+        log_event(thread_id=thread_id, employee_id=requesting_employee_id, agent_name="Mixed Resolution Service",
+                   action="resolve_denied", status="failure", detail=f"invalid choice: {choice}")
         return {"error": "Invalid choice. Must be 'partial' or 'escalate_all'."}
