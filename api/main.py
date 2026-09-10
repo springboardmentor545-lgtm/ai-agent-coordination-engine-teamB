@@ -103,18 +103,47 @@ async def log_http_requests(request: Request, call_next):
     return response
 
 
-@app.exception_handler(RequestValidationError)
-async def validation_exception_handler(request: Request, exc: RequestValidationError):
-    problems = []
-    for err in exc.errors():
-        field = ".".join(str(part) for part in err["loc"] if part != "body")
-        problems.append(f"{field} ({err['msg']})")
-    detail = "; ".join(problems) if problems else "Request could not be validated."
+@app.exception_handler(RateLimitExceeded)
+async def rate_limit_exceeded_handler(request: Request, exc: RateLimitExceeded):
     return JSONResponse(
-        status_code=422,
-        content={
-            "error": f"Invalid request. Problem with: {detail}"
-        }
+        status_code=429,
+        content={"error": "Too many requests. Please slow down and try again shortly."}
+    )
+
+
+@app.exception_handler(Exception)
+async def unhandled_exception_handler(request: Request, exc: Exception):
+    """
+    Last-resort safety net for any exception not already caught by a more
+    specific handler or a service/agent's own try/except. Without this, an
+    unexpected failure (a Groq outage, a transient DB blip) inside /extend,
+    /cancel, or /resolve-mixed would bypass our own audit logging entirely
+    and return Starlette's raw default 500 page - inconsistent with how
+    /leave-request already behaves via its own explicit try/except around
+    the graph invocation. This gives every endpoint, present and future,
+    that same clean-response, always-logged guarantee in one place.
+    Starlette still re-raises this exception after we return our response,
+    so the full traceback still prints to the terminal exactly as before -
+    nothing is lost for local debugging.
+    """
+    thread_id = request.path_params.get("thread_id") or f"http-{uuid.uuid4()}"
+    employee_id = None
+    auth_header = request.headers.get("authorization", "")
+    if auth_header.startswith("Bearer "):
+        try:
+            employee_id = decode_access_token(auth_header[len("Bearer "):])
+        except Exception:
+            pass
+
+    log_event(
+        thread_id=thread_id, employee_id=employee_id, agent_name="API Gateway",
+        action="unhandled_exception", status="failure", http_status=500,
+        detail=f"{request.method} {request.url.path} - {type(exc).__name__}: {str(exc)}"
+    )
+
+    return JSONResponse(
+        status_code=500,
+        content={"error": "An unexpected error occurred while processing your request. Please try again, and let support know if it keeps happening."}
     )
 
 class LeaveRequest(BaseModel):
