@@ -1,21 +1,36 @@
 <!DOCTYPE html>
 <html>
 <head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
   <title>Dashboard - Leave Approval System</title>
   <link rel="stylesheet" href="css/style.css">
 </head>
 <body>
-  <div class="container wide">
-    <div class="header-row">
-      <h1>My Leave Sessions</h1>
-      <button id="logout-btn" class="secondary">Log Out</button>
+  <header class="app-header">
+    <div>
+      <div class="brand">Leave Approval System</div>
+      <div class="brand-sub">Employee Portal</div>
     </div>
+    <nav class="app-nav">
+      <a href="monitoring.html">System Monitoring</a>
+      <button id="logout-btn" class="secondary">Log Out</button>
+    </nav>
+  </header>
 
-    <a href="new-request.html"><button>+ New Leave Request</button></a>
-    <a href="monitoring.html"><button class="secondary">📊 System Monitoring</button></a>
+  <div class="page-shell">
+    <div class="container wide">
+      <div class="header-row">
+        <h1>My Leave Sessions</h1>
+      </div>
 
-    <div id="sessions-list">
-      <p>Loading...</p>
+      <div class="action-row">
+        <a href="new-request.html"><button>+ New Leave Request</button></a>
+      </div>
+
+      <div id="sessions-list">
+        <p>Loading...</p>
+      </div>
     </div>
   </div>
 
