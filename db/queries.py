@@ -1,8 +1,8 @@
 import os
 import psycopg2
 from dotenv import load_dotenv
+from datetime import datetime, timedelta
 import json as _json
-
 load_dotenv()
 DATABASE_URL = os.getenv("DATABASE_URL")
 
@@ -127,27 +127,46 @@ def get_leave_history(employee_id: str) -> list[dict]:
 
 
 def get_team_calendar(department: str, start_date: str, end_date: str) -> list[dict]:
-    """Check which employees in a department are already on leave during a date range."""
+    """
+    Check which employees in a department are already on approved leave during
+    a date range. Derived live from the `sessions` table - the single real
+    source of truth for what leave is actually approved right now - instead of
+    a separate `team_calendar` table that had to be manually kept in sync and
+    never actually was outside the initial seed data. This means a newly
+    approved leave, an extension, or a cancellation are all reflected
+    immediately, with nothing extra to remember to update.
+    """
     conn = get_connection()
     cursor = conn.cursor()
     cursor.execute(
         """
-        SELECT tc.employee_id, e.name, tc.leave_date, tc.status
-        FROM team_calendar tc
-        JOIN employees e ON tc.employee_id = e.employee_id
-        WHERE e.department = %s AND tc.leave_date BETWEEN %s AND %s;
+        SELECT s.employee_id, s.start_date, s.end_date, s.cancelled_dates
+        FROM sessions s
+        JOIN employees e ON s.employee_id = e.employee_id
+        WHERE e.department = %s
+          AND s.decision_outcome = 'APPROVE'
+          AND s.start_date <= %s AND s.end_date >= %s;
         """,
-        (department, start_date, end_date)
+        (department, end_date, start_date)
     )
     rows = cursor.fetchall()
     cursor.close()
     conn.close()
 
-    return [
-        {"employee_id": r[0], "name": r[1], "leave_date": str(r[2]), "status": r[3]}
-        for r in rows
-    ]
+    range_start = datetime.strptime(start_date, "%Y-%m-%d").date()
+    range_end = datetime.strptime(end_date, "%Y-%m-%d").date()
+    entries = []
+    for emp_id, s_start, s_end, cancelled_dates in rows:
+        cancelled = set(cancelled_dates) if cancelled_dates else set()
+        day = max(s_start, range_start)
+        last_day = min(s_end, range_end)
+        while day <= last_day:
+            iso = day.isoformat()
+            if iso not in cancelled:
+                entries.append({"employee_id": emp_id, "leave_date": iso, "status": "approved"})
+            day += timedelta(days=1)
 
+    return entries
 
 def get_department_size(department: str) -> int:
     """Count total employees in a department (used for team-conflict % calculation)."""
