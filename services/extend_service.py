@@ -20,19 +20,19 @@ def process_extension(thread_id: str, new_date: str, employee_id: str) -> dict:
     if session is None:
         log_event(thread_id=thread_id, employee_id=employee_id, agent_name="Extend Service",
                    action="extend_denied", status="failure", detail="session not found")
-        return {"error": "Session not found."}
+        return {"error": "Session not found.", "status_code": 404}
     if session["employee_id"] != employee_id:
         log_event(thread_id=thread_id, employee_id=employee_id, agent_name="Extend Service",
                    action="extend_denied", status="failure", detail="ownership check failed")
-        return {"error": "You do not have permission to modify this session."}
+        return {"error": "You do not have permission to modify this session.", "status_code": 403}
     if session["decision_outcome"] != "APPROVE":
         log_event(thread_id=thread_id, employee_id=employee_id, agent_name="Extend Service",
                    action="extend_denied", status="failure", detail="session is not an approved leave")
-        return {"error": "Only approved leave sessions can be extended."}
+        return {"error": "Only approved leave sessions can be extended.", "status_code": 400}
     if session.get("extend_locked"):
         log_event(thread_id=thread_id, employee_id=employee_id, agent_name="Extend Service",
                    action="extend_denied", status="failure", detail="extend is locked for this session")
-        return {"error": "Extension is no longer available for this session. You can still cancel part or all of your approved leave."}
+        return {"error": "Extension is no longer available for this session. You can still cancel part or all of your approved leave.", "status_code": 400}
 
     holidays_in_window = set(get_holidays_in_range(new_date, new_date))
     is_valid, error_message, new_range_start, new_range_end = validate_single_day_extension(
@@ -41,7 +41,7 @@ def process_extension(thread_id: str, new_date: str, employee_id: str) -> dict:
     if not is_valid:
         log_event(thread_id=thread_id, employee_id=employee_id, agent_name="Extend Service",
                    action="extend_denied", status="failure", detail=error_message)
-        return {"error": error_message}
+        return {"error": error_message, "status_code": 400}
 
     delta_state = {
         "user_query": f"Extend leave to include {new_date}",
@@ -58,11 +58,11 @@ def process_extension(thread_id: str, new_date: str, employee_id: str) -> dict:
 
     delta_state = research_agent(delta_state)
     if delta_state.get("error"):
-        return {"error": f"Could not evaluate extension: {delta_state['error']}"}
+        return {"error": f"Could not evaluate extension: {delta_state['error']}", "status_code": 500}
 
     delta_state = analysis_agent(delta_state)
     if delta_state.get("error"):
-        return {"error": f"Could not evaluate extension: {delta_state['error']}"}
+        return {"error": f"Could not evaluate extension: {delta_state['error']}", "status_code": 500}
 
     rule_results = delta_state["analysis"]["rule_results"]
     task = (

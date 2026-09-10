@@ -17,13 +17,13 @@ def resolve_mixed_request(thread_id: str, choice: str, requesting_employee_id: s
     if not state.get("mixed_choice_pending"):
         log_event(thread_id=thread_id, employee_id=requesting_employee_id, agent_name="Mixed Resolution Service",
                    action="resolve_denied", status="failure", detail="no pending mixed-conflict choice")
-        return {"error": "No pending mixed-conflict choice found for this session."}
+        return {"error": "No pending mixed-conflict choice found for this session.", "status_code": 400}
 
     employee_id = state["employee_id"]
     if employee_id != requesting_employee_id:
         log_event(thread_id=thread_id, employee_id=requesting_employee_id, agent_name="Mixed Resolution Service",
                    action="resolve_denied", status="failure", detail="ownership check failed")
-        return {"error": "You do not have permission to modify this session."}
+        return {"error": "You do not have permission to modify this session.", "status_code": 403}
 
     split_info = state.get("mixed_split_info")
     reason = state.get("fetched_data", {}).get("reason", "not specified")
@@ -106,4 +106,4 @@ def resolve_mixed_request(thread_id: str, choice: str, requesting_employee_id: s
     else:
         log_event(thread_id=thread_id, employee_id=requesting_employee_id, agent_name="Mixed Resolution Service",
                    action="resolve_denied", status="failure", detail=f"invalid choice: {choice}")
-        return {"error": "Invalid choice. Must be 'partial' or 'escalate_all'."}
+        return {"error": "Invalid choice. Must be 'partial' or 'escalate_all'.", "status_code": 400}

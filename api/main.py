@@ -46,6 +46,21 @@ app.state.limiter = limiter
 app.mount("/app", StaticFiles(directory="frontend", html=True), name="frontend")
 
 
+
+def _service_response(result: dict):
+    """
+    Service-layer functions (extend, cancel, mixed-resolution) now include a
+    'status_code' key on error dicts, instead of always defaulting to FastAPI's
+    implicit 200. This translates that into a real JSONResponse so every
+    failure path returns the correct HTTP status - not just the one or two
+    that used to be manually special-cased.
+    """
+    status_code = result.pop("status_code", None)
+    if status_code:
+        return JSONResponse(status_code=status_code, content=result)
+    return result
+
+
 @app.exception_handler(RateLimitExceeded)
 async def rate_limit_exceeded_handler(request: Request, exc: RateLimitExceeded):
     return JSONResponse(
@@ -235,15 +250,15 @@ def cancel_leave(thread_id: str, request: Request, payload: CancelRequest, emplo
     if session is None:
         log_event(thread_id=thread_id, employee_id=employee_id, agent_name="Cancel Service",
                    action="cancel_denied", status="failure", detail="session not found")
-        return {"error": "Session not found."}
+        return _service_response({"error": "Session not found.", "status_code": 404})
     if session["employee_id"] != employee_id:
         log_event(thread_id=thread_id, employee_id=employee_id, agent_name="Cancel Service",
                    action="cancel_denied", status="failure", detail="ownership check failed")
-        return JSONResponse(status_code=403, content={"error": "You do not have permission to modify this session."})
+        return _service_response({"error": "You do not have permission to modify this session.", "status_code": 403})
     if session["decision_outcome"] != "APPROVE":
         log_event(thread_id=thread_id, employee_id=employee_id, agent_name="Cancel Service",
                    action="cancel_denied", status="failure", detail="session is not an approved leave")
-        return {"error": "Only approved leave sessions can be cancelled."}
+        return _service_response({"error": "Only approved leave sessions can be cancelled.", "status_code": 400})
 
     holidays = set(get_holidays_in_range(session["start_date"], session["end_date"]))
 
@@ -258,7 +273,7 @@ def cancel_leave(thread_id: str, request: Request, payload: CancelRequest, emplo
     if not result["valid"]:
         log_event(thread_id=thread_id, employee_id=employee_id, agent_name="Cancel Service",
                    action="cancel_denied", status="failure", detail=result["error"])
-        return {"error": result["error"]}
+        return _service_response({"error": result["error"], "status_code": 400})
 
     update_session_cancelled_dates(thread_id, result["updated_cancelled_dates"])
     if result["working_days_credited"] > 0:
@@ -287,19 +302,15 @@ def cancel_leave(thread_id: str, request: Request, payload: CancelRequest, emplo
 @limiter.limit("10/minute")
 def extend_leave(thread_id: str, request: Request, payload: ExtendRequest, employee_id: str = Depends(get_current_employee)):
     if payload.start_date != payload.end_date:
-        return {"error": "Extensions are limited to a single day. Please select just one date on the calendar."}
+        return _service_response({"error": "Extensions are limited to a single day. Please select just one date on the calendar.", "status_code": 400})
     result = process_extension(thread_id, payload.start_date, employee_id)
-    if result.get("error") == "You do not have permission to modify this session.":
-        return JSONResponse(status_code=403, content=result)
-    return result
+    return _service_response(result)
 
 @app.post("/sessions/{thread_id}/resolve-mixed")
 @limiter.limit("10/minute")
 def resolve_mixed(thread_id: str, request: Request, payload: MixedChoiceRequest, employee_id: str = Depends(get_current_employee)):
     result = resolve_mixed_request(thread_id, payload.choice, employee_id)
-    if result.get("error") == "You do not have permission to modify this session.":
-        return JSONResponse(status_code=403, content=result)
-    return result
+    return _service_response(result)
 
 @app.get("/sessions/{thread_id}/audit-logs")
 @limiter.limit("60/minute")
