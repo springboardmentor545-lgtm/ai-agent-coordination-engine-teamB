@@ -129,6 +129,7 @@ class LeaveResponse(BaseModel):
     decision: Optional[str] = None
     completed_steps: list
     error: Optional[str] = None
+    mixed_choice_pending: bool = False
 
 class CancelRequest(BaseModel):
     dates_to_cancel: list[str]
@@ -220,6 +221,7 @@ def submit_leave_request(request: Request, payload: LeaveRequest, employee_id: s
         decision=result.get("decision"),
         completed_steps=result.get("completed_steps", []),
         error=result.get("error"),
+        mixed_choice_pending=bool(result.get("mixed_choice_pending")),
     )
 
 @app.get("/sessions")

@@ -192,7 +192,7 @@ document.getElementById("submit-btn").addEventListener("click", async function (
   resultMessage.textContent = "";
 
   if (response.ok) {
-    const isMixedConflict = !data.decision && !data.completed_steps.includes("decision");
+    const isMixedConflict = data.mixed_choice_pending === true;
 
     if (isMixedConflict) {
       showChoiceModal(
@@ -213,8 +213,12 @@ document.getElementById("submit-btn").addEventListener("click", async function (
           });
         }
       );
-    } else {
+    } else if (data.decision) {
       showModal(`Result: ${data.decision}`, function () {
+        window.location.href = "/app/dashboard.html";
+      });
+    } else {
+      showModal(data.error || "Something went wrong while processing your request. Please try again.", function () {
         window.location.href = "/app/dashboard.html";
       });
     }
