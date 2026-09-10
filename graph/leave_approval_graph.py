@@ -1,6 +1,8 @@
 from typing import TypedDict, Optional
 from langgraph.graph import StateGraph, END
 from langgraph.checkpoint.postgres import PostgresSaver
+from psycopg_pool import ConnectionPool
+from psycopg.rows import dict_row
 import os
 
 from agents.coordinator_agent import coordinator_agent
@@ -74,8 +76,21 @@ builder.add_edge("analysis", "coordinator")
 builder.add_edge("decision", "coordinator")
 
 DATABASE_URL = os.getenv("DATABASE_URL")
-_checkpointer_cm = PostgresSaver.from_conn_string(DATABASE_URL)
-checkpointer = _checkpointer_cm.__enter__()
+
+# A single long-lived Connection (the old approach) gets silently closed by
+# Neon after a period of idleness, causing "connection is closed" errors on
+# the next graph call. A ConnectionPool is self-healing: it discards dead
+# connections and opens fresh ones automatically, and PostgresSaver accepts
+# a pool in place of a single connection natively (no workaround needed).
+checkpoint_pool = ConnectionPool(
+    conninfo=DATABASE_URL,
+    max_size=10,
+    kwargs={"autocommit": True, "prepare_threshold": 0, "row_factory": dict_row},
+    check=ConnectionPool.check_connection,  # validate a connection is alive before handing it out
+    max_lifetime=20 * 60,                   # recycle connections every 20 min, before Neon can kill them
+    max_idle=5 * 60,                        # also recycle if idle for 5 min
+)
+checkpointer = PostgresSaver(checkpoint_pool)
 checkpointer.setup()
 
 leave_approval_graph = builder.compile(checkpointer=checkpointer)
