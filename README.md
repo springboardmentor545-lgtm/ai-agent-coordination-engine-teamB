@@ -136,3 +136,37 @@ The mentor's requirement to "deliberately fail an agent" was tested across sever
 - **Reused password hash**: all seeded employees initially shared one bcrypt hash due to `hashpw()` being called once and reused - fixed to hash independently per employee
 - **Outcome-detection bug**: `.startswith("APPROVE")` checks silently failed whenever the LLM wrapped its answer in markdown (`**APPROVE**`), skipping balance deduction and history recording - fixed with a single shared, markdown-tolerant `detect_decision_outcome()` function, replacing two duplicated, brittle call sites
 - **Weekend/holiday extension bug**: a one-day extension only checked date adjacency, never whether the date was an actual working day, so extending onto a Sunday or official holiday was incorrectly approved - fixed by adding an explicit working-day check to `validate_single_day_extension`, reusing the same holiday data the rest of the system already relies on
+
+
+## Milestone 4 - Workflow Automation, Monitoring & Production Hardening
+
+### What's new
+- **Email-based login**: authentication now uses `{email, password}` instead of a raw `employee_id`; the JWT's identity claim is unchanged (`employee_id`), so no downstream auth/ownership logic needed to change
+- **Configurable session length**: `JWT_EXPIRY_MINUTES` env var controls token lifetime; the frontend decodes the JWT client-side and auto-logs-out at the exact expiry moment, with one shared `expireSessionNow()` function handling all three ways a session can end (idle timeout, page load after expiry, a reactive 401)
+- **Audit logging**: a single `audit_logs` table and one shared `log_event()` function, written to on every agent start/finish, every tool call, and every service-layer action (extend/cancel/resolve-mixed) - printed to console and written to Postgres in the same call, so nothing is visible live without also being queryable later
+- **Per-session log viewer**: a "Logs" button on each dashboard session card, backed by `GET /sessions/{thread_id}/audit-logs` (ownership-checked like every other endpoint)
+- **System-wide monitoring**: a dedicated `monitoring.html` page showing total requests, average workflow time, average API response time, success rate, and per-agent/per-tool/HTTP-status breakdowns - all built on the same `audit_logs` table, no second logging system
+- **Rate limiting**: `slowapi`, keyed by `employee_id` when a valid JWT is present (so shared office IPs don't share a limit), falling back to IP address for `/login`. Tiered limits: 5/minute on `/login`, 10/minute on LLM-heavy workflow endpoints, 60/minute on normal reads/writes, 30/minute on monitoring
+- **Global error handling hardening**: a last-resort `Exception` handler ensures no endpoint can return a raw crash - every unhandled failure is logged to `audit_logs` and returned as a clean `500` with a friendly message; a `RequestValidationError` handler (re-added after being lost in the M4 rate-limiting rewrite - see Real Bugs below) builds its message dynamically per-endpoint instead of a hardcoded string
+- **Self-healing DB connections**: the LangGraph checkpointer now uses `psycopg`'s `ConnectionPool` (with `max_lifetime`/`max_idle`/`check_connection`) instead of one permanent connection, so an idle Neon free-tier disconnect no longer breaks the next request
+- **Double-booking prevention confirmed working on the structured (calendar) request path** - the overlap check runs before the request reaches Research/Analysis/Decision, regardless of whether the request came from the calendar, Swagger, or free text
+- **Frontend redesign**: a full visual pass on all pages (login, dashboard, new-request, monitoring) - warm paper background, serif display type for headings, a ledger-green accent, hairline borders instead of heavy card shadows, and a consistent header/nav across the authenticated pages. No JavaScript logic was touched; every ID/class the existing scripts depend on was preserved exactly
+
+### Error handling - tested against sir's 8-case list
+| Case | Status |
+|---|---|
+| Normal workflow | Tested repeatedly across M2-M4 |
+| Tool usage | Tested (M2 + M3) |
+| Unauthorized (403) | Tested in M3 (ownership checks on extend/cancel/resolve-mixed) |
+| Unauthenticated (401) | Confirmed on `/login` (wrong/empty password); a protected-endpoint request with no/invalid token is expected to behave the same via `get_current_employee`, worth one direct live confirmation before the demo |
+| Logging error | Handled by design - `insert_audit_log()` wraps its own insert in try/except and never raises, so a logging outage can't break a real request |
+| Tool failure | Tested (simulated `fetch_leave_balance` break, simulated DB outage) |
+| API failure | Covered by the new global `Exception` handler; worth one live test (temporarily raising an exception in a service call) before the demo, matching the same discipline as every other deliberate-failure test in this project |
+| Memory failure | Resolved by the `ConnectionPool` self-healing idle Neon disconnects |
+
+### Real bugs found and fixed
+- **Duplicate exception handler**: a manual paste left `rate_limit_exceeded_handler` defined twice in `api/main.py`. Harmless at runtime (Python silently keeps the second definition), but confusing and sloppy - removed the duplicate, keeping one clean definition
+- **Lost validation handler**: the custom `RequestValidationError` handler documented back in Milestone 2 (and fixed further in Milestone 3 to build its message dynamically) had been dropped entirely during the M4 rate-limiting full-file rewrite of `api/main.py` - the import remained but the handler itself was gone, meaning malformed requests silently fell back to FastAPI's raw technical error format instead of the friendly message already demoed to sir. Re-added, verified live: a request missing the `password` field now correctly returns `"Your request is missing or has invalid value(s) for: password. Please check and try again."` instead of raw Pydantic JSON
+
+### Known limitations / remaining for Milestone 4
+- **Deployment** (Render or Railway) not yet done
