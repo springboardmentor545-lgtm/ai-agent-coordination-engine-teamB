@@ -69,6 +69,31 @@ async def rate_limit_exceeded_handler(request: Request, exc: RateLimitExceeded):
     )
 
 
+@app.exception_handler(RequestValidationError)
+async def validation_exception_handler(request: Request, exc: RequestValidationError):
+    """
+    Friendly validation-error handler. Without this, a malformed request (a
+    missing field, a wrong type) falls through to FastAPI's default handler,
+    which returns its raw, technical Pydantic error format instead of a
+    message a real user could act on. Built dynamically from exc.errors()
+    rather than a hardcoded string, so it correctly names whatever field
+    actually failed on ANY endpoint - /login, /leave-request, /extend,
+    /cancel, /resolve-mixed - not just the one endpoint a hardcoded message
+    would have described (the exact bug found and fixed in Milestone 3).
+    """
+    missing_or_bad_fields = []
+    for err in exc.errors():
+        field_path = ".".join(str(part) for part in err.get("loc", []) if part != "body")
+        missing_or_bad_fields.append(field_path or "request body")
+
+    fields_text = ", ".join(missing_or_bad_fields) if missing_or_bad_fields else "one or more fields"
+
+    return JSONResponse(
+        status_code=422,
+        content={"error": f"Your request is missing or has invalid value(s) for: {fields_text}. Please check and try again."}
+    )
+
+
 @app.middleware("http")
 async def log_http_requests(request: Request, call_next):
     """
@@ -101,14 +126,6 @@ async def log_http_requests(request: Request, call_next):
     )
 
     return response
-
-
-@app.exception_handler(RateLimitExceeded)
-async def rate_limit_exceeded_handler(request: Request, exc: RateLimitExceeded):
-    return JSONResponse(
-        status_code=429,
-        content={"error": "Too many requests. Please slow down and try again shortly."}
-    )
 
 
 @app.exception_handler(Exception)
