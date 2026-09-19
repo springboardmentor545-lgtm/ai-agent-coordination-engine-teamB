@@ -1,7 +1,7 @@
 from fastapi import FastAPI
 from pydantic import BaseModel
 
-from workflow import app as workflow_app
+from workflow import run_workflow
 
 
 app = FastAPI(
@@ -28,9 +28,7 @@ def root():
 @app.post("/ask", response_model=PromptResponse)
 def ask_agent(request: PromptRequest):
 
-    result = workflow_app.invoke({
-        "user_query": request.question
-    })
+    result = run_workflow(request.question)
 
     return PromptResponse(
         agent_name="Multi-Agent System",

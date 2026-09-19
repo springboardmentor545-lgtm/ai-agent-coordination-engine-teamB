@@ -10,57 +10,150 @@ from agents.analysis_agent import AnalysisAgent
 from agents.decision_agent import DecisionAgent
 from agents.validation import validate_state
 
+from database_operations import (
+    create_workflow,
+    update_workflow,
+    save_agent_activity
+)
 
-# Create agents
+import time
+
+
+# ============================================================
+# CREATE AGENTS
+# ============================================================
+
 planning_agent = PlanningAgent()
 research_agent = ResearchAgent()
 analysis_agent = AnalysisAgent()
 decision_agent = DecisionAgent()
 
 
-# Create memory
+# ============================================================
+# CREATE MEMORY
+# ============================================================
+
 short_term_memory = ShortTermMemory()
 long_term_memory = LongTermMemory()
 
 
-# Planning Agent
+# ============================================================
+# PLANNING AGENT
+# ============================================================
+
 def planning_node(state: AgentState):
+
+    start_time = time.time()
+
     plan = planning_agent.plan(
         state["user_query"]
     )
+
+    execution_time = time.time() - start_time
+
+    workflow_id = state.get("workflow_id")
+
+    if workflow_id:
+        save_agent_activity(
+            workflow_id=workflow_id,
+            agent_name="Planning Agent",
+            status="Completed",
+            result=plan,
+            execution_time=execution_time
+        )
 
     return {
         "plan": plan
     }
 
 
-# Research Agent
+# ============================================================
+# RESEARCH AGENT
+# ============================================================
+
 def research_node(state: AgentState):
+
+    start_time = time.time()
+
     research_result = research_agent.research(
         state["user_query"],
         state["plan"]
     )
+
+    execution_time = time.time() - start_time
+
+    workflow_id = state.get("workflow_id")
+
+    if workflow_id:
+        save_agent_activity(
+            workflow_id=workflow_id,
+            agent_name="Research Agent",
+            status="Completed",
+            result=research_result,
+            execution_time=execution_time
+        )
 
     return {
         "research_result": research_result
     }
 
 
-# Analysis Agent
+# ============================================================
+# ANALYSIS AGENT
+# ============================================================
+
 def analysis_node(state: AgentState):
+
+    start_time = time.time()
+
     analysis = analysis_agent.analyze(
         state["user_query"],
         state["research_result"]
     )
+
+    execution_time = time.time() - start_time
+
+    workflow_id = state.get("workflow_id")
+
+    if workflow_id:
+        save_agent_activity(
+            workflow_id=workflow_id,
+            agent_name="Analysis Agent",
+            status="Completed",
+            result=analysis,
+            execution_time=execution_time
+        )
 
     return {
         "analysis": analysis
     }
 
 
-# Validation
+# ============================================================
+# VALIDATION
+# ============================================================
+
 def validation_node(state: AgentState):
+
+    start_time = time.time()
+
     valid, message = validate_state(state)
+
+    execution_time = time.time() - start_time
+
+    workflow_id = state.get("workflow_id")
+
+    if workflow_id:
+
+        status = "Completed" if valid else "Failed"
+
+        save_agent_activity(
+            workflow_id=workflow_id,
+            agent_name="Validation",
+            status=status,
+            result=message,
+            execution_time=execution_time
+        )
 
     if not valid:
         return {
@@ -72,19 +165,47 @@ def validation_node(state: AgentState):
     }
 
 
-# Decision Agent
+# ============================================================
+# DECISION AGENT
+# ============================================================
+
 def decision_node(state: AgentState):
+
+    start_time = time.time()
 
     # If validation failed, keep the error message
     if state.get("final_decision"):
-        return {
-            "final_decision": state["final_decision"]
-        }
 
-    final_decision = decision_agent.decide(
-        state["user_query"],
-        state["analysis"]
-    )
+        final_decision = state["final_decision"]
+
+    else:
+
+        final_decision = decision_agent.decide(
+            state["user_query"],
+            state["analysis"]
+        )
+
+    execution_time = time.time() - start_time
+
+    workflow_id = state.get("workflow_id")
+
+    if workflow_id:
+
+        status = "Completed"
+
+        if (
+            final_decision.startswith("Error")
+            or "unable to convert" in final_decision.lower()
+        ):
+            status = "Failed"
+
+        save_agent_activity(
+            workflow_id=workflow_id,
+            agent_name="Decision Agent",
+            status=status,
+            result=final_decision,
+            execution_time=execution_time
+        )
 
     # Save only successful results
     if (
@@ -104,12 +225,37 @@ def decision_node(state: AgentState):
             final_decision
         )
 
+    # Update workflow in PostgreSQL
+    if workflow_id:
+
+        total_execution_time = (
+            time.time() - state.get("workflow_start_time", time.time())
+        )
+
+        workflow_status = "Completed"
+
+        if (
+            final_decision.startswith("Error")
+            or "unable to convert" in final_decision.lower()
+        ):
+            workflow_status = "Failed"
+
+        update_workflow(
+            workflow_id=workflow_id,
+            status=workflow_status,
+            final_decision=final_decision,
+            execution_time=total_execution_time
+        )
+
     return {
         "final_decision": final_decision
     }
 
 
-# Create workflow
+# ============================================================
+# CREATE WORKFLOW
+# ============================================================
+
 graph = StateGraph(AgentState)
 
 
@@ -121,7 +267,10 @@ graph.add_node("validation", validation_node)
 graph.add_node("decision", decision_node)
 
 
-# Workflow order
+# ============================================================
+# WORKFLOW ORDER
+# ============================================================
+
 graph.add_edge(START, "planning")
 graph.add_edge("planning", "research")
 graph.add_edge("research", "analysis")
@@ -130,5 +279,29 @@ graph.add_edge("validation", "decision")
 graph.add_edge("decision", END)
 
 
-# Compile
+# ============================================================
+# COMPILE
+# ============================================================
+
 app = graph.compile()
+
+
+# ============================================================
+# RUN WORKFLOW WITH DATABASE LOGGING
+# ============================================================
+
+def run_workflow(user_query: str):
+
+    workflow_id = create_workflow(user_query)
+
+    start_time = time.time()
+
+    initial_state = {
+        "user_query": user_query,
+        "workflow_id": workflow_id,
+        "workflow_start_time": start_time
+    }
+
+    result = app.invoke(initial_state)
+
+    return result
