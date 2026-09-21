@@ -1,0 +1,969 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>AI Agent Coordination / Dashboard</title>
+    <link rel="stylesheet" href="/style.css">
+</head>
+
+<body>
+
+<div class="app-shell">
+
+    <!-- SIDEBAR -->
+    <aside class="sidebar">
+
+        <div class="brand">
+            <div class="brand-icon">AI</div>
+            <div>
+                <h2>AI Agent</h2>
+                <span>Coordination Engine</span>
+            </div>
+        </div>
+
+        <nav class="sidebar-nav">
+
+            <a href="/" class="nav-item active">
+                <span>⌂</span>
+                Dashboard
+            </a>
+
+            <a href="#new-request" class="nav-item">
+                <span>＋</span>
+                New Request
+            </a>
+
+            <a href="/workflows.html" class="nav-item">
+                <span>▣</span>
+                Workflows
+            </a>
+
+            <a href="/agent-activity.html" class="nav-item">
+                <span>◉</span>
+                Agent Activity
+            </a>
+
+            <a href="/monitoring.html" class="nav-item">
+                <span>◷</span>
+                Monitoring
+            </a>
+
+        </nav>
+
+        <div class="sidebar-bottom">
+            <div class="system-status">
+                <span class="status-dot"></span>
+                <div>
+                    <strong>System Online</strong>
+                    <small>All services operational</small>
+                </div>
+            </div>
+        </div>
+
+    </aside>
+
+
+    <!-- MAIN CONTENT -->
+    <main class="main-content">
+
+        <!-- TOP HEADER -->
+        <header class="top-header">
+
+            <div>
+                <p class="breadcrumb">AI Agent Coordination / Dashboard</p>
+                <h1>Dashboard</h1>
+            </div>
+
+            <button
+                class="btn-primary"
+                id="newRequestButton"
+                type="button">
+                + New Request
+            </button>
+
+        </header>
+
+
+        <!-- HERO -->
+        <section class="hero-section">
+
+            <div>
+                <h2>AI Agent Coordination &amp; Decision Engine</h2>
+
+                <p>
+                    Manage workflows, monitor agent activities and generate
+                    intelligent decisions.
+                </p>
+            </div>
+
+            <div class="hero-icon">
+                ⌘
+            </div>
+
+        </section>
+
+
+        <!-- METRICS -->
+        <section class="metrics-grid">
+
+            <div class="metric-card">
+                <div class="metric-icon">⌘</div>
+
+                <div>
+                    <span>Total Workflows</span>
+                    <strong id="totalWorkflows">0</strong>
+                    <small>All processed workflows</small>
+                </div>
+            </div>
+
+
+            <div class="metric-card">
+                <div class="metric-icon success">✓</div>
+
+                <div>
+                    <span>Completed</span>
+                    <strong id="completedWorkflows">0</strong>
+                    <small>Successfully completed</small>
+                </div>
+            </div>
+
+
+            <div class="metric-card">
+                <div class="metric-icon danger">!</div>
+
+                <div>
+                    <span>Failed</span>
+                    <strong id="failedWorkflows">0</strong>
+                    <small>Failed workflows</small>
+                </div>
+            </div>
+
+
+            <div class="metric-card">
+                <div class="metric-icon warning">◷</div>
+
+                <div>
+                    <span>Avg. Execution</span>
+                    <strong id="averageExecution">0.00s</strong>
+                    <small>Average workflow time</small>
+                </div>
+            </div>
+
+        </section>
+
+
+        <!-- NEW REQUEST -->
+        <section
+            class="dashboard-card request-card"
+            id="new-request">
+
+            <div class="section-heading">
+                <div>
+                    <h2>Ask the AI Agent System</h2>
+
+                    <p>
+                        Submit a task and let the multi-agent workflow
+                        coordinate the decision process.
+                    </p>
+                </div>
+            </div>
+
+
+            <form id="workflowForm">
+
+                <div class="form-group">
+
+                    <label for="question">
+                        Enter your task
+                    </label>
+
+                    <textarea
+                        id="question"
+                        name="question"
+                        rows="4"
+                        placeholder="Example: What is 25 multiplied by 4?"
+                        required></textarea>
+
+                </div>
+
+
+                <div class="form-actions">
+
+                    <button
+                        type="submit"
+                        class="btn-primary"
+                        id="runWorkflowButton">
+
+                        Run AI Workflow
+
+                    </button>
+
+                    <span
+                        id="loadingMessage"
+                        class="loading-message"
+                        style="display:none;">
+
+                        Processing workflow...
+
+                    </span>
+
+                </div>
+
+            </form>
+
+
+            <!-- RESULT -->
+            <div
+                id="resultSection"
+                class="result-section"
+                style="display:none;">
+
+                <div class="result-header">
+                    <h3>Final Decision</h3>
+                </div>
+
+                <div
+                    id="resultContent"
+                    class="result-content">
+                </div>
+
+            </div>
+
+        </section>
+
+
+        <!-- RECENT WORKFLOWS -->
+        <section class="dashboard-card">
+
+            <div class="section-heading">
+
+                <div>
+                    <h2>Recent Workflows</h2>
+
+                    <p>
+                        Latest workflow executions
+                    </p>
+                </div>
+
+                <a
+                    href="/workflows.html"
+                    class="view-link">
+                    View All
+                </a>
+
+            </div>
+
+
+            <div class="table-wrapper">
+
+                <table>
+
+                    <thead>
+                        <tr>
+                            <th>ID</th>
+                            <th>Query</th>
+                            <th>Status</th>
+                            <th>Execution</th>
+                        </tr>
+                    </thead>
+
+                    <tbody id="workflowTableBody">
+
+                        <tr>
+                            <td colspan="4">
+                                Loading workflows...
+                            </td>
+                        </tr>
+
+                    </tbody>
+
+                </table>
+
+            </div>
+
+        </section>
+
+
+        <!-- AGENT PIPELINE -->
+        <section class="dashboard-card">
+
+            <div class="section-heading">
+
+                <div>
+                    <h2>Agent Pipeline</h2>
+
+                    <p>
+                        Multi-agent coordination flow
+                    </p>
+                </div>
+
+            </div>
+
+
+            <div class="agent-pipeline">
+
+                <div class="pipeline-step">
+                    <div class="step-number">1</div>
+
+                    <div class="step-info">
+                        <strong>Planning Agent</strong>
+                        <span>Task planning</span>
+                    </div>
+
+                    <div class="step-status">✓</div>
+                </div>
+
+
+                <div class="pipeline-line"></div>
+
+
+                <div class="pipeline-step">
+                    <div class="step-number">2</div>
+
+                    <div class="step-info">
+                        <strong>Research Agent</strong>
+                        <span>Information retrieval</span>
+                    </div>
+
+                    <div class="step-status">✓</div>
+                </div>
+
+
+                <div class="pipeline-line"></div>
+
+
+                <div class="pipeline-step">
+                    <div class="step-number">3</div>
+
+                    <div class="step-info">
+                        <strong>Analysis Agent</strong>
+                        <span>Data analysis</span>
+                    </div>
+
+                    <div class="step-status">✓</div>
+                </div>
+
+
+                <div class="pipeline-line"></div>
+
+
+                <div class="pipeline-step">
+                    <div class="step-number">4</div>
+
+                    <div class="step-info">
+                        <strong>Validation</strong>
+                        <span>Result validation</span>
+                    </div>
+
+                    <div class="step-status">✓</div>
+                </div>
+
+
+                <div class="pipeline-line"></div>
+
+
+                <div class="pipeline-step">
+                    <div class="step-number">5</div>
+
+                    <div class="step-info">
+                        <strong>Decision Agent</strong>
+                        <span>Final decision</span>
+                    </div>
+
+                    <div class="step-status">✓</div>
+                </div>
+
+            </div>
+
+        </section>
+
+
+        <!-- RECENT ACTIVITY -->
+        <section class="dashboard-card">
+
+            <div class="section-heading">
+
+                <div>
+                    <h2>Recent Agent Activity</h2>
+
+                    <p>
+                        Latest actions performed by the AI agents
+                    </p>
+                </div>
+
+                <button
+                    id="refreshActivity"
+                    class="btn-secondary"
+                    type="button">
+
+                    Refresh
+
+                </button>
+
+            </div>
+
+
+            <div class="table-wrapper">
+
+                <table>
+
+                    <thead>
+                        <tr>
+                            <th>Workflow</th>
+                            <th>Agent</th>
+                            <th>Status</th>
+                            <th>Execution Time</th>
+                            <th>Completed</th>
+                        </tr>
+                    </thead>
+
+                    <tbody id="activityTableBody">
+
+                        <tr>
+                            <td colspan="5">
+                                Loading activity...
+                            </td>
+                        </tr>
+
+                    </tbody>
+
+                </table>
+
+            </div>
+
+        </section>
+
+
+        <!-- FOOTER -->
+        <footer class="page-footer">
+
+            <span>
+                AI Agent Coordination &amp; Decision Engine
+            </span>
+
+        </footer>
+
+    </main>
+
+</div>
+
+
+<script>
+
+const workflowForm =
+    document.getElementById("workflowForm");
+
+const questionInput =
+    document.getElementById("question");
+
+const runWorkflowButton =
+    document.getElementById("runWorkflowButton");
+
+const loadingMessage =
+    document.getElementById("loadingMessage");
+
+const resultSection =
+    document.getElementById("resultSection");
+
+const resultContent =
+    document.getElementById("resultContent");
+
+const newRequestButton =
+    document.getElementById("newRequestButton");
+
+const refreshActivity =
+    document.getElementById("refreshActivity");
+
+
+/* ================================
+   NEW REQUEST BUTTON
+================================ */
+
+newRequestButton.addEventListener("click", () => {
+
+    const requestSection =
+        document.getElementById("new-request");
+
+    requestSection.scrollIntoView({
+        behavior: "smooth",
+        block: "start"
+    });
+
+    setTimeout(() => {
+        questionInput.focus();
+    }, 500);
+
+});
+
+
+/* ================================
+   LOAD DASHBOARD DATA
+================================ */
+
+async function loadDashboardData() {
+
+    try {
+
+        const response =
+            await fetch("/dashboard/data");
+
+        if (!response.ok) {
+            throw new Error("Unable to load dashboard data.");
+        }
+
+        const data =
+            await response.json();
+
+
+        /* Metrics */
+
+        document.getElementById(
+            "totalWorkflows"
+        ).textContent =
+            data.total_workflows || 0;
+
+
+        document.getElementById(
+            "completedWorkflows"
+        ).textContent =
+            data.completed_workflows || 0;
+
+
+        document.getElementById(
+            "failedWorkflows"
+        ).textContent =
+            data.failed_workflows || 0;
+
+
+        document.getElementById(
+            "averageExecution"
+        ).textContent =
+            `${Number(
+                data.average_execution || 0
+            ).toFixed(2)}s`;
+
+
+        /* Workflows */
+
+        renderWorkflows(
+            data.workflows || []
+        );
+
+
+        /* Activities */
+
+        renderActivities(
+            data.activities || []
+        );
+
+    }
+
+    catch (error) {
+
+        console.error(
+            "Dashboard error:",
+            error
+        );
+
+    }
+
+}
+
+
+/* ================================
+   RENDER WORKFLOWS
+================================ */
+
+function renderWorkflows(workflows) {
+
+    const tbody =
+        document.getElementById(
+            "workflowTableBody"
+        );
+
+
+    if (!workflows.length) {
+
+        tbody.innerHTML = `
+            <tr>
+                <td colspan="4">
+                    No workflows recorded yet.
+                </td>
+            </tr>
+        `;
+
+        return;
+    }
+
+
+    tbody.innerHTML =
+        workflows
+            .slice(0, 10)
+            .map(workflow => {
+
+                const statusClass =
+                    workflow.status === "Completed"
+                        ? "status-success"
+                        : workflow.status === "Failed"
+                        ? "status-danger"
+                        : "status-warning";
+
+
+                return `
+                    <tr>
+
+                        <td>
+                            #${workflow.workflow_id}
+                        </td>
+
+                        <td>
+                            ${escapeHtml(
+                                workflow.user_query || ""
+                            )}
+                        </td>
+
+                        <td>
+                            <span class="status-badge ${statusClass}">
+                                ${escapeHtml(
+                                    workflow.status || ""
+                                )}
+                            </span>
+                        </td>
+
+                        <td>
+                            ${
+                                workflow.execution_time !== null &&
+                                workflow.execution_time !== undefined
+                                    ? Number(
+                                        workflow.execution_time
+                                      ).toFixed(2) + "s"
+                                    : "-"
+                            }
+                        </td>
+
+                    </tr>
+                `;
+
+            })
+            .join("");
+
+}
+
+
+/* ================================
+   RENDER ACTIVITIES
+================================ */
+
+function renderActivities(activities) {
+
+    const tbody =
+        document.getElementById(
+            "activityTableBody"
+        );
+
+
+    if (!activities.length) {
+
+        tbody.innerHTML = `
+            <tr>
+                <td colspan="5">
+                    No agent activity recorded yet.
+                </td>
+            </tr>
+        `;
+
+        return;
+    }
+
+
+    tbody.innerHTML =
+        activities
+            .slice(0, 10)
+            .map(activity => {
+
+                const statusClass =
+                    activity.status === "Completed"
+                        ? "status-success"
+                        : activity.status === "Failed"
+                        ? "status-danger"
+                        : "status-warning";
+
+
+                return `
+                    <tr>
+
+                        <td>
+                            #${activity.workflow_id}
+                        </td>
+
+                        <td>
+                            ${escapeHtml(
+                                activity.agent_name || ""
+                            )}
+                        </td>
+
+                        <td>
+                            <span class="status-badge ${statusClass}">
+                                ${escapeHtml(
+                                    activity.status || ""
+                                )}
+                            </span>
+                        </td>
+
+                        <td>
+                            ${
+                                activity.execution_time !== null &&
+                                activity.execution_time !== undefined
+                                    ? Number(
+                                        activity.execution_time
+                                      ).toFixed(2) + "s"
+                                    : "-"
+                            }
+                        </td>
+
+                        <td>
+                            ${
+                                activity.completed_at
+                                    ? formatDate(
+                                        activity.completed_at
+                                      )
+                                    : "-"
+                            }
+                        </td>
+
+                    </tr>
+                `;
+
+            })
+            .join("");
+
+}
+
+
+/* ================================
+   RUN WORKFLOW
+================================ */
+
+workflowForm.addEventListener(
+    "submit",
+    async (event) => {
+
+        event.preventDefault();
+
+
+        const question =
+            questionInput.value.trim();
+
+
+        if (!question) {
+
+            questionInput.focus();
+
+            return;
+        }
+
+
+        runWorkflowButton.disabled = true;
+
+        loadingMessage.style.display =
+            "inline-block";
+
+        resultSection.style.display =
+            "none";
+
+
+        try {
+
+            const response =
+                await fetch("/ask", {
+
+                    method: "POST",
+
+                    headers: {
+                        "Content-Type":
+                            "application/json"
+                    },
+
+                    body: JSON.stringify({
+                        question: question
+                    })
+
+                });
+
+
+            if (!response.ok) {
+
+                throw new Error(
+                    "Workflow request failed."
+                );
+
+            }
+
+
+            const data =
+                await response.json();
+
+
+            resultContent.innerHTML = `
+                ${formatDecision(
+                    data.response ||
+                    "No final decision was generated."
+                )}
+            `;
+
+
+            resultSection.style.display =
+                "block";
+
+
+            await loadDashboardData();
+
+        }
+
+        catch (error) {
+
+            console.error(
+                "Workflow error:",
+                error
+            );
+
+
+            resultContent.innerHTML = `
+                <div class="error-message">
+                    Unable to execute the workflow.
+                    Please check whether the FastAPI server is running.
+                </div>
+            `;
+
+
+            resultSection.style.display =
+                "block";
+
+        }
+
+        finally {
+
+            runWorkflowButton.disabled =
+                false;
+
+            loadingMessage.style.display =
+                "none";
+
+        }
+
+    }
+);
+
+
+/* ================================
+   REFRESH ACTIVITY
+================================ */
+
+refreshActivity.addEventListener(
+    "click",
+    async () => {
+
+        refreshActivity.disabled = true;
+
+        refreshActivity.textContent =
+            "Refreshing...";
+
+        await loadDashboardData();
+
+        refreshActivity.disabled = false;
+
+        refreshActivity.textContent =
+            "Refresh";
+
+    }
+);
+
+
+/* ================================
+   FORMAT DECISION
+================================ */
+
+function formatDecision(text) {
+
+    let safeText =
+        escapeHtml(String(text));
+
+
+    safeText =
+        safeText.replace(
+            /\*\*(.*?)\*\*/g,
+            "<strong>$1</strong>"
+        );
+
+
+    safeText =
+        safeText.replace(
+            /\n/g,
+            "<br>"
+        );
+
+
+    return safeText;
+
+}
+
+
+/* ================================
+   FORMAT DATE
+================================ */
+
+function formatDate(value) {
+
+    try {
+
+        return new Date(value)
+            .toLocaleString(
+                "en-IN",
+                {
+                    day: "2-digit",
+                    month: "2-digit",
+                    year: "numeric",
+                    hour: "2-digit",
+                    minute: "2-digit",
+                    second: "2-digit"
+                }
+            );
+
+    }
+
+    catch {
+
+        return value;
+
+    }
+
+}
+
+
+/* ================================
+   ESCAPE HTML
+================================ */
+
+function escapeHtml(value) {
+
+    return String(value)
+        .replaceAll("&", "&amp;")
+        .replaceAll("<", "&lt;")
+        .replaceAll(">", "&gt;")
+        .replaceAll('"', "&quot;")
+        .replaceAll("'", "&#039;");
+
+}
+
+
+/* ================================
+   INITIAL LOAD
+================================ */
+
+loadDashboardData();
+
+</script>
+
+</body>
+</html>

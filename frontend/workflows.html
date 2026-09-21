@@ -1,0 +1,948 @@
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+
+    <title>Workflows | AI Agent Coordination & Decision Engine</title>
+
+    <link rel="stylesheet" href="style.css">
+
+    <style>
+        .workflow-details {
+            margin-top: 22px;
+        }
+
+        .decision-box {
+            background: #eff6ff;
+            border: 1px solid #bfdbfe;
+            padding: 18px;
+            border-radius: 8px;
+            margin-top: 15px;
+        }
+
+        .decision-box h3 {
+            color: #2563eb;
+            font-size: 13px;
+            margin-bottom: 8px;
+        }
+
+        .decision-box p {
+            font-size: 13px;
+            line-height: 1.6;
+        }
+
+        .query-text {
+            max-width: 420px;
+            line-height: 1.5;
+        }
+
+        .pipeline-mini {
+            display: flex;
+            align-items: center;
+            gap: 7px;
+            flex-wrap: wrap;
+            padding: 18px 20px;
+        }
+
+        .pipeline-agent {
+            background: #eff6ff;
+            color: #2563eb;
+            border: 1px solid #bfdbfe;
+            border-radius: 6px;
+            padding: 7px 10px;
+            font-size: 11px;
+            font-weight: 600;
+        }
+
+        .pipeline-arrow {
+            color: #94a3b8;
+        }
+    </style>
+</head>
+
+<body>
+
+    <!-- SIDEBAR -->
+
+    <aside class="sidebar">
+
+        <div class="logo">
+
+            <div class="logo-icon">
+                AI
+            </div>
+
+            <div>
+                <h2>Agent Engine</h2>
+                <p>Decision Platform</p>
+            </div>
+
+        </div>
+
+
+        <nav class="navigation">
+
+            <a href="/" class="nav-item">
+                <span>⌂</span>
+                Dashboard
+            </a>
+
+            <a href="/" class="nav-item">
+                <span>＋</span>
+                New Request
+            </a>
+
+            <a href="/workflows.html" class="nav-item active">
+                <span>◉</span>
+                Workflows
+            </a>
+
+            <a href="/" class="nav-item">
+                <span>▣</span>
+                Agent Activity
+            </a>
+
+            <a href="/monitoring.html" class="nav-item">
+                <span>◌</span>
+                Monitoring
+            </a>
+
+        </nav>
+
+
+        <div class="sidebar-bottom">
+
+            <div class="system-status">
+
+                <span class="status-dot"></span>
+
+                System Online
+
+            </div>
+
+
+            <div class="user-box">
+
+                <div class="user-avatar">
+                    N
+                </div>
+
+                <div>
+                    <strong>Navya</strong>
+                    <small>Administrator</small>
+                </div>
+
+            </div>
+
+        </div>
+
+    </aside>
+
+
+    <!-- MAIN CONTENT -->
+
+    <main class="main-content">
+
+        <header class="topbar">
+
+            <div>
+
+                <p class="breadcrumb">
+                    AI Agent Coordination / Workflows
+                </p>
+
+                <h1>Workflows</h1>
+
+            </div>
+
+
+            <button
+                class="refresh-btn"
+                onclick="loadWorkflows()"
+            >
+                Refresh
+            </button>
+
+        </header>
+
+
+        <!-- SUMMARY -->
+
+        <section class="metrics-grid">
+
+            <div class="metric-card">
+
+                <div class="metric-icon blue">
+                    ⌘
+                </div>
+
+                <div>
+
+                    <p>Total Workflows</p>
+
+                    <h3 id="totalWorkflows">
+                        0
+                    </h3>
+
+                    <span>
+                        Recorded executions
+                    </span>
+
+                </div>
+
+            </div>
+
+
+            <div class="metric-card">
+
+                <div class="metric-icon green">
+                    ✓
+                </div>
+
+                <div>
+
+                    <p>Completed</p>
+
+                    <h3 id="completedWorkflows">
+                        0
+                    </h3>
+
+                    <span>
+                        Successful workflows
+                    </span>
+
+                </div>
+
+            </div>
+
+
+            <div class="metric-card">
+
+                <div class="metric-icon red">
+                    !
+                </div>
+
+                <div>
+
+                    <p>Failed</p>
+
+                    <h3 id="failedWorkflows">
+                        0
+                    </h3>
+
+                    <span>
+                        Failed workflows
+                    </span>
+
+                </div>
+
+            </div>
+
+
+            <div class="metric-card">
+
+                <div class="metric-icon purple">
+                    ◷
+                </div>
+
+                <div>
+
+                    <p>Avg. Execution</p>
+
+                    <h3 id="averageExecution">
+                        0.00s
+                    </h3>
+
+                    <span>
+                        Average processing time
+                    </span>
+
+                </div>
+
+            </div>
+
+        </section>
+
+
+        <!-- WORKFLOW LIST -->
+
+        <section class="panel">
+
+            <div class="panel-header">
+
+                <div>
+
+                    <h2>All Workflows</h2>
+
+                    <p>
+                        Workflow executions recorded by the platform
+                    </p>
+
+                </div>
+
+            </div>
+
+
+            <div class="table-container">
+
+                <table>
+
+                    <thead>
+
+                        <tr>
+
+                            <th>ID</th>
+
+                            <th>User Query</th>
+
+                            <th>Status</th>
+
+                            <th>Execution</th>
+
+                            <th>Created</th>
+
+                        </tr>
+
+                    </thead>
+
+
+                    <tbody id="workflowTable">
+
+                        <tr>
+
+                            <td
+                                colspan="5"
+                                class="empty-state"
+                            >
+                                Loading workflows...
+                            </td>
+
+                        </tr>
+
+                    </tbody>
+
+                </table>
+
+            </div>
+
+        </section>
+
+
+        <!-- SELECTED WORKFLOW -->
+
+        <section class="panel workflow-details">
+
+            <div class="panel-header">
+
+                <div>
+
+                    <h2>Workflow Details</h2>
+
+                    <p>
+                        Select a workflow from the table
+                        to view its execution details.
+                    </p>
+
+                </div>
+
+            </div>
+
+
+            <div
+                id="workflowDetails"
+                style="padding:20px;"
+            >
+
+                <div class="empty-state">
+                    Select a workflow to view details.
+                </div>
+
+            </div>
+
+        </section>
+
+
+        <footer>
+
+            <p>
+                AI Agent Coordination & Decision Engine
+            </p>
+
+            <span>
+                Multi-Agent Workflow Automation Platform
+            </span>
+
+        </footer>
+
+    </main>
+
+
+    <script>
+
+        const API_URL =
+            "http://127.0.0.1:8000";
+
+
+        let workflows = [];
+
+        let activities = [];
+
+
+        // ==================================================
+        // LOAD WORKFLOWS
+        // ==================================================
+
+        async function loadWorkflows() {
+
+            try {
+
+                const response =
+                    await fetch(
+                        `${API_URL}/dashboard/data`
+                    );
+
+
+                if (!response.ok) {
+
+                    throw new Error(
+                        "Unable to load workflow data"
+                    );
+
+                }
+
+
+                const data =
+                    await response.json();
+
+
+                workflows =
+                    data.workflows || [];
+
+
+                activities =
+                    data.activities || [];
+
+
+                updateMetrics(data);
+
+                displayWorkflows();
+
+
+            }
+            catch (error) {
+
+                console.error(error);
+
+                document.getElementById(
+                    "workflowTable"
+                ).innerHTML = `
+                    <tr>
+                        <td
+                            colspan="5"
+                            class="empty-state"
+                        >
+                            Unable to load workflows.
+                        </td>
+                    </tr>
+                `;
+
+            }
+
+        }
+
+
+        // ==================================================
+        // METRICS
+        // ==================================================
+
+        function updateMetrics(data) {
+
+            document.getElementById(
+                "totalWorkflows"
+            ).textContent =
+                data.total_workflows || 0;
+
+
+            document.getElementById(
+                "completedWorkflows"
+            ).textContent =
+                data.completed_workflows || 0;
+
+
+            document.getElementById(
+                "failedWorkflows"
+            ).textContent =
+                data.failed_workflows || 0;
+
+
+            document.getElementById(
+                "averageExecution"
+            ).textContent =
+                `${Number(
+                    data.average_execution || 0
+                ).toFixed(2)}s`;
+
+        }
+
+
+        // ==================================================
+        // DISPLAY WORKFLOWS
+        // ==================================================
+
+        function displayWorkflows() {
+
+            const table =
+                document.getElementById(
+                    "workflowTable"
+                );
+
+
+            table.innerHTML = "";
+
+
+            if (!workflows.length) {
+
+                table.innerHTML = `
+                    <tr>
+                        <td
+                            colspan="5"
+                            class="empty-state"
+                        >
+                            No workflows available.
+                        </td>
+                    </tr>
+                `;
+
+                return;
+
+            }
+
+
+            workflows.forEach(workflow => {
+
+                const row =
+                    document.createElement("tr");
+
+
+                row.style.cursor = "pointer";
+
+
+                row.innerHTML = `
+
+                    <td>
+                        #${workflow.workflow_id}
+                    </td>
+
+                    <td class="query-text">
+                        ${escapeHtml(
+                            workflow.user_query || ""
+                        )}
+                    </td>
+
+                    <td>
+                        ${statusBadge(
+                            workflow.status
+                        )}
+                    </td>
+
+                    <td>
+                        ${formatExecution(
+                            workflow.execution_time
+                        )}
+                    </td>
+
+                    <td>
+                        ${formatDate(
+                            workflow.created_at
+                        )}
+                    </td>
+
+                `;
+
+
+                row.addEventListener(
+                    "click",
+                    () => showWorkflowDetails(
+                        workflow.workflow_id
+                    )
+                );
+
+
+                table.appendChild(row);
+
+            });
+
+        }
+
+
+        // ==================================================
+        // WORKFLOW DETAILS
+        // ==================================================
+
+        function showWorkflowDetails(id) {
+
+            const workflow =
+                workflows.find(
+                    item =>
+                        item.workflow_id === id
+                );
+
+
+            if (!workflow) {
+                return;
+            }
+
+
+            const workflowActivities =
+                activities
+                    .filter(
+                        activity =>
+                            activity.workflow_id === id
+                    )
+                    .sort(
+                        (a, b) =>
+                            a.activity_id -
+                            b.activity_id
+                    );
+
+
+            const details =
+                document.getElementById(
+                    "workflowDetails"
+                );
+
+
+            let pipelineHTML = "";
+
+
+            workflowActivities.forEach(
+                (activity, index) => {
+
+                    pipelineHTML += `
+
+                        <span class="pipeline-agent">
+                            ${escapeHtml(
+                                activity.agent_name
+                            )}
+                        </span>
+
+                    `;
+
+
+                    if (
+                        index <
+                        workflowActivities.length - 1
+                    ) {
+
+                        pipelineHTML += `
+                            <span class="pipeline-arrow">
+                                →
+                            </span>
+                        `;
+
+                    }
+
+                }
+            );
+
+
+            if (!pipelineHTML) {
+
+                pipelineHTML =
+                    `<span class="empty-state">
+                        No agent activity recorded.
+                    </span>`;
+
+            }
+
+
+            details.innerHTML = `
+
+                <div>
+
+                    <p style="
+                        color:#64748b;
+                        font-size:11px;
+                        margin-bottom:5px;
+                    ">
+                        Workflow ID
+                    </p>
+
+                    <h2 style="
+                        font-size:20px;
+                        margin-bottom:18px;
+                    ">
+                        #${workflow.workflow_id}
+                    </h2>
+
+                </div>
+
+
+                <div style="
+                    margin-bottom:18px;
+                ">
+
+                    <p style="
+                        color:#64748b;
+                        font-size:11px;
+                        margin-bottom:5px;
+                    ">
+                        User Query
+                    </p>
+
+                    <p style="
+                        font-size:14px;
+                        line-height:1.6;
+                    ">
+                        ${escapeHtml(
+                            workflow.user_query || ""
+                        )}
+                    </p>
+
+                </div>
+
+
+                <div style="
+                    display:grid;
+                    grid-template-columns:
+                    repeat(3, 1fr);
+                    gap:15px;
+                    margin-bottom:18px;
+                ">
+
+                    <div>
+
+                        <p style="
+                            color:#64748b;
+                            font-size:11px;
+                        ">
+                            Status
+                        </p>
+
+                        <div style="
+                            margin-top:5px;
+                        ">
+                            ${statusBadge(
+                                workflow.status
+                            )}
+                        </div>
+
+                    </div>
+
+
+                    <div>
+
+                        <p style="
+                            color:#64748b;
+                            font-size:11px;
+                        ">
+                            Execution Time
+                        </p>
+
+                        <strong>
+                            ${formatExecution(
+                                workflow.execution_time
+                            )}
+                        </strong>
+
+                    </div>
+
+
+                    <div>
+
+                        <p style="
+                            color:#64748b;
+                            font-size:11px;
+                        ">
+                            Created
+                        </p>
+
+                        <strong style="
+                            font-size:12px;
+                        ">
+                            ${formatDate(
+                                workflow.created_at
+                            )}
+                        </strong>
+
+                    </div>
+
+                </div>
+
+
+                <div>
+
+                    <p style="
+                        color:#64748b;
+                        font-size:11px;
+                        margin-bottom:6px;
+                    ">
+                        Agent Pipeline
+                    </p>
+
+                    <div class="pipeline-mini">
+
+                        ${pipelineHTML}
+
+                    </div>
+
+                </div>
+
+
+                <div class="decision-box">
+
+                    <h3>
+                        Final Decision
+                    </h3>
+
+                    <p>
+                        ${escapeHtml(
+                            workflow.final_decision ||
+                            "No final decision available."
+                        )}
+                    </p>
+
+                </div>
+
+            `;
+
+        }
+
+
+        // ==================================================
+        // HELPERS
+        // ==================================================
+
+        function statusBadge(status) {
+
+            const value =
+                String(
+                    status || "Unknown"
+                );
+
+
+            const lower =
+                value.toLowerCase();
+
+
+            let className =
+                "status-running";
+
+
+            if (
+                lower === "completed"
+            ) {
+
+                className =
+                    "status-completed";
+
+            }
+
+
+            if (
+                lower === "failed"
+            ) {
+
+                className =
+                    "status-failed";
+
+            }
+
+
+            return `
+
+                <span
+                    class="status-badge ${className}"
+                >
+                    ${escapeHtml(value)}
+                </span>
+
+            `;
+
+        }
+
+
+        function formatExecution(value) {
+
+            if (
+                value === null ||
+                value === undefined
+            ) {
+
+                return "-";
+
+            }
+
+
+            return `${Number(value).toFixed(2)}s`;
+
+        }
+
+
+        function formatDate(value) {
+
+            if (!value) {
+                return "-";
+            }
+
+
+            const date =
+                new Date(value);
+
+
+            if (
+                Number.isNaN(
+                    date.getTime()
+                )
+            ) {
+
+                return value;
+
+            }
+
+
+            return date.toLocaleString();
+
+        }
+
+
+        function escapeHtml(value) {
+
+            return String(value)
+                .replaceAll(
+                    "&",
+                    "&amp;"
+                )
+                .replaceAll(
+                    "<",
+                    "&lt;"
+                )
+                .replaceAll(
+                    ">",
+                    "&gt;"
+                )
+                .replaceAll(
+                    '"',
+                    "&quot;"
+                )
+                .replaceAll(
+                    "'",
+                    "&#039;"
+                );
+
+        }
+
+
+        // ==================================================
+        // INITIAL LOAD
+        // ==================================================
+
+        loadWorkflows();
+
+    </script>
+
+</body>
+
+</html>

@@ -1,0 +1,996 @@
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+
+    <title>Agent Activity | AI Agent Coordination & Decision Engine</title>
+
+    <link rel="stylesheet" href="style.css">
+
+    <style>
+        .activity-summary {
+            display: grid;
+            grid-template-columns: repeat(3, 1fr);
+            gap: 18px;
+            margin-bottom: 22px;
+        }
+
+        .agent-filter {
+            padding: 9px 12px;
+            border: 1px solid #dbe2ea;
+            border-radius: 7px;
+            background: white;
+            font-size: 12px;
+            color: #334155;
+            outline: none;
+        }
+
+        .agent-filter:focus {
+            border-color: #2563eb;
+        }
+
+        .result-text {
+            max-width: 420px;
+            line-height: 1.5;
+            color: #475569;
+        }
+
+        @media (max-width: 900px) {
+            .activity-summary {
+                grid-template-columns: 1fr;
+            }
+        }
+    </style>
+</head>
+
+<body>
+
+    <!-- SIDEBAR -->
+
+    <aside class="sidebar">
+
+        <div class="logo">
+
+            <div class="logo-icon">
+                AI
+            </div>
+
+            <div>
+                <h2>Agent Engine</h2>
+                <p>Decision Platform</p>
+            </div>
+
+        </div>
+
+
+        <nav class="navigation">
+
+            <a href="/" class="nav-item">
+                <span>⌂</span>
+                Dashboard
+            </a>
+
+            <a href="/" class="nav-item">
+                <span>＋</span>
+                New Request
+            </a>
+
+            <a href="/workflows.html" class="nav-item">
+                <span>◉</span>
+                Workflows
+            </a>
+
+            <a href="/agent-activity.html" class="nav-item active">
+                <span>▣</span>
+                Agent Activity
+            </a>
+
+            <a href="/monitoring.html" class="nav-item">
+                <span>◌</span>
+                Monitoring
+            </a>
+
+        </nav>
+
+
+        <div class="sidebar-bottom">
+
+            <div class="system-status">
+
+                <span class="status-dot"></span>
+
+                System Online
+
+            </div>
+
+
+            <div class="user-box">
+
+                <div class="user-avatar">
+                    N
+                </div>
+
+                <div>
+                    <strong>Navya</strong>
+                    <small>Administrator</small>
+                </div>
+
+            </div>
+
+        </div>
+
+    </aside>
+
+
+    <!-- MAIN CONTENT -->
+
+    <main class="main-content">
+
+        <header class="topbar">
+
+            <div>
+
+                <p class="breadcrumb">
+                    AI Agent Coordination / Agent Activity
+                </p>
+
+                <h1>Agent Activity</h1>
+
+            </div>
+
+
+            <button
+                class="refresh-btn"
+                onclick="loadActivities()"
+            >
+                Refresh
+            </button>
+
+        </header>
+
+
+        <!-- SUMMARY -->
+
+        <section class="activity-summary">
+
+            <div class="metric-card">
+
+                <div class="metric-icon blue">
+                    ◉
+                </div>
+
+                <div>
+
+                    <p>Total Activities</p>
+
+                    <h3 id="totalActivities">
+                        0
+                    </h3>
+
+                    <span>
+                        Recorded agent executions
+                    </span>
+
+                </div>
+
+            </div>
+
+
+            <div class="metric-card">
+
+                <div class="metric-icon green">
+                    ✓
+                </div>
+
+                <div>
+
+                    <p>Completed</p>
+
+                    <h3 id="completedActivities">
+                        0
+                    </h3>
+
+                    <span>
+                        Successful agent executions
+                    </span>
+
+                </div>
+
+            </div>
+
+
+            <div class="metric-card">
+
+                <div class="metric-icon purple">
+                    ◷
+                </div>
+
+                <div>
+
+                    <p>Average Agent Time</p>
+
+                    <h3 id="averageAgentTime">
+                        0.00s
+                    </h3>
+
+                    <span>
+                        Average execution time
+                    </span>
+
+                </div>
+
+            </div>
+
+        </section>
+
+
+        <!-- ACTIVITY TABLE -->
+
+        <section class="panel">
+
+            <div class="panel-header">
+
+                <div>
+
+                    <h2>Agent Execution Log</h2>
+
+                    <p>
+                        Detailed activity recorded during workflow execution
+                    </p>
+
+                </div>
+
+
+                <select
+                    id="agentFilter"
+                    class="agent-filter"
+                    onchange="filterActivities()"
+                >
+
+                    <option value="all">
+                        All Agents
+                    </option>
+
+                </select>
+
+            </div>
+
+
+            <div class="table-container">
+
+                <table>
+
+                    <thead>
+
+                        <tr>
+
+                            <th>Activity</th>
+
+                            <th>Workflow</th>
+
+                            <th>Agent</th>
+
+                            <th>Status</th>
+
+                            <th>Execution Time</th>
+
+                            <th>Started</th>
+
+                            <th>Completed</th>
+
+                        </tr>
+
+                    </thead>
+
+
+                    <tbody id="activityTable">
+
+                        <tr>
+
+                            <td
+                                colspan="7"
+                                class="empty-state"
+                            >
+                                Loading agent activities...
+                            </td>
+
+                        </tr>
+
+                    </tbody>
+
+                </table>
+
+            </div>
+
+        </section>
+
+
+        <!-- AGENT BREAKDOWN -->
+
+        <section class="panel" style="margin-top:22px;">
+
+            <div class="panel-header">
+
+                <div>
+
+                    <h2>Agent Breakdown</h2>
+
+                    <p>
+                        Activity count and execution performance by agent
+                    </p>
+
+                </div>
+
+            </div>
+
+
+            <div class="table-container">
+
+                <table>
+
+                    <thead>
+
+                        <tr>
+
+                            <th>Agent</th>
+
+                            <th>Total Executions</th>
+
+                            <th>Completed</th>
+
+                            <th>Failed</th>
+
+                            <th>Average Time</th>
+
+                        </tr>
+
+                    </thead>
+
+
+                    <tbody id="agentBreakdown">
+
+                        <tr>
+
+                            <td
+                                colspan="5"
+                                class="empty-state"
+                            >
+                                Loading...
+                            </td>
+
+                        </tr>
+
+                    </tbody>
+
+                </table>
+
+            </div>
+
+        </section>
+
+
+        <footer>
+
+            <p>
+                AI Agent Coordination & Decision Engine
+            </p>
+
+            <span>
+                Multi-Agent Workflow Automation Platform
+            </span>
+
+        </footer>
+
+    </main>
+
+
+    <script>
+
+        const API_URL =
+            "http://127.0.0.1:8000";
+
+
+        let activities = [];
+
+
+        // ==================================================
+        // LOAD ACTIVITIES
+        // ==================================================
+
+        async function loadActivities() {
+
+            try {
+
+                const response =
+                    await fetch(
+                        `${API_URL}/dashboard/data`
+                    );
+
+
+                if (!response.ok) {
+
+                    throw new Error(
+                        "Unable to load agent activity"
+                    );
+
+                }
+
+
+                const data =
+                    await response.json();
+
+
+                activities =
+                    data.activities || [];
+
+
+                updateSummary();
+
+                populateAgentFilter();
+
+                displayActivities();
+
+                displayAgentBreakdown();
+
+            }
+            catch (error) {
+
+                console.error(error);
+
+                document.getElementById(
+                    "activityTable"
+                ).innerHTML = `
+                    <tr>
+                        <td
+                            colspan="7"
+                            class="empty-state"
+                        >
+                            Unable to load agent activities.
+                        </td>
+                    </tr>
+                `;
+
+            }
+
+        }
+
+
+        // ==================================================
+        // SUMMARY
+        // ==================================================
+
+        function updateSummary() {
+
+            const total =
+                activities.length;
+
+
+            const completed =
+                activities.filter(
+                    activity =>
+                        String(activity.status)
+                            .toLowerCase() === "completed"
+                ).length;
+
+
+            const times =
+                activities
+                    .filter(
+                        activity =>
+                            activity.execution_time !== null &&
+                            activity.execution_time !== undefined
+                    )
+                    .map(
+                        activity =>
+                            Number(
+                                activity.execution_time
+                            )
+                    );
+
+
+            const average =
+                times.length
+                    ? times.reduce(
+                        (a, b) => a + b,
+                        0
+                    ) / times.length
+                    : 0;
+
+
+            document.getElementById(
+                "totalActivities"
+            ).textContent =
+                total;
+
+
+            document.getElementById(
+                "completedActivities"
+            ).textContent =
+                completed;
+
+
+            document.getElementById(
+                "averageAgentTime"
+            ).textContent =
+                `${average.toFixed(2)}s`;
+
+        }
+
+
+        // ==================================================
+        // AGENT FILTER
+        // ==================================================
+
+        function populateAgentFilter() {
+
+            const select =
+                document.getElementById(
+                    "agentFilter"
+                );
+
+
+            const current =
+                select.value;
+
+
+            const agents =
+                [
+                    ...new Set(
+                        activities.map(
+                            activity =>
+                                activity.agent_name
+                        )
+                    )
+                ]
+                .filter(Boolean)
+                .sort();
+
+
+            select.innerHTML = `
+                <option value="all">
+                    All Agents
+                </option>
+            `;
+
+
+            agents.forEach(agent => {
+
+                const option =
+                    document.createElement(
+                        "option"
+                    );
+
+
+                option.value =
+                    agent;
+
+
+                option.textContent =
+                    agent;
+
+
+                select.appendChild(
+                    option
+                );
+
+            });
+
+
+            if (
+                agents.includes(current)
+            ) {
+
+                select.value =
+                    current;
+
+            }
+
+        }
+
+
+        // ==================================================
+        // FILTER ACTIVITIES
+        // ==================================================
+
+        function filterActivities() {
+
+            displayActivities();
+
+        }
+
+
+        // ==================================================
+        // DISPLAY ACTIVITIES
+        // ==================================================
+
+        function displayActivities() {
+
+            const table =
+                document.getElementById(
+                    "activityTable"
+                );
+
+
+            const selectedAgent =
+                document.getElementById(
+                    "agentFilter"
+                ).value;
+
+
+            let filtered =
+                activities;
+
+
+            if (
+                selectedAgent !== "all"
+            ) {
+
+                filtered =
+                    activities.filter(
+                        activity =>
+                            activity.agent_name ===
+                            selectedAgent
+                    );
+
+            }
+
+
+            table.innerHTML = "";
+
+
+            if (!filtered.length) {
+
+                table.innerHTML = `
+                    <tr>
+                        <td
+                            colspan="7"
+                            class="empty-state"
+                        >
+                            No agent activities found.
+                        </td>
+                    </tr>
+                `;
+
+                return;
+
+            }
+
+
+            filtered.forEach(
+                activity => {
+
+                    const row =
+                        document.createElement(
+                            "tr"
+                        );
+
+
+                    row.innerHTML = `
+
+                        <td>
+                            #${activity.activity_id || "-"}
+                        </td>
+
+                        <td>
+                            #${activity.workflow_id || "-"}
+                        </td>
+
+                        <td>
+                            ${escapeHtml(
+                                activity.agent_name || "-"
+                            )}
+                        </td>
+
+                        <td>
+                            ${statusBadge(
+                                activity.status
+                            )}
+                        </td>
+
+                        <td>
+                            ${
+                                activity.execution_time !==
+                                null &&
+                                activity.execution_time !==
+                                undefined
+                                    ? Number(
+                                        activity.execution_time
+                                      ).toFixed(2) + "s"
+                                    : "-"
+                            }
+                        </td>
+
+                        <td>
+                            ${formatDate(
+                                activity.started_at
+                            )}
+                        </td>
+
+                        <td>
+                            ${formatDate(
+                                activity.completed_at
+                            )}
+                        </td>
+
+                    `;
+
+
+                    table.appendChild(row);
+
+                }
+            );
+
+        }
+
+
+        // ==================================================
+        // AGENT BREAKDOWN
+        // ==================================================
+
+        function displayAgentBreakdown() {
+
+            const table =
+                document.getElementById(
+                    "agentBreakdown"
+                );
+
+
+            const breakdown = {};
+
+
+            activities.forEach(
+                activity => {
+
+                    const agent =
+                        activity.agent_name ||
+                        "Unknown";
+
+
+                    if (!breakdown[agent]) {
+
+                        breakdown[agent] = {
+                            total: 0,
+                            completed: 0,
+                            failed: 0,
+                            times: []
+                        };
+
+                    }
+
+
+                    breakdown[agent].total++;
+
+
+                    if (
+                        String(activity.status)
+                            .toLowerCase() ===
+                        "completed"
+                    ) {
+
+                        breakdown[agent].completed++;
+
+                    }
+
+
+                    if (
+                        String(activity.status)
+                            .toLowerCase() ===
+                        "failed"
+                    ) {
+
+                        breakdown[agent].failed++;
+
+                    }
+
+
+                    if (
+                        activity.execution_time !==
+                        null &&
+                        activity.execution_time !==
+                        undefined
+                    ) {
+
+                        breakdown[agent].times.push(
+                            Number(
+                                activity.execution_time
+                            )
+                        );
+
+                    }
+
+                }
+            );
+
+
+            table.innerHTML = "";
+
+
+            Object.entries(
+                breakdown
+            ).forEach(
+                ([agent, stats]) => {
+
+                    const average =
+                        stats.times.length
+                            ? stats.times.reduce(
+                                (a, b) => a + b,
+                                0
+                            ) /
+                            stats.times.length
+                            : 0;
+
+
+                    const row =
+                        document.createElement(
+                            "tr"
+                        );
+
+
+                    row.innerHTML = `
+
+                        <td>
+                            ${escapeHtml(agent)}
+                        </td>
+
+                        <td>
+                            ${stats.total}
+                        </td>
+
+                        <td>
+                            ${stats.completed}
+                        </td>
+
+                        <td>
+                            ${stats.failed}
+                        </td>
+
+                        <td>
+                            ${average.toFixed(2)}s
+                        </td>
+
+                    `;
+
+
+                    table.appendChild(row);
+
+                }
+            );
+
+        }
+
+
+        // ==================================================
+        // STATUS BADGE
+        // ==================================================
+
+        function statusBadge(status) {
+
+            const value =
+                String(
+                    status || "Unknown"
+                );
+
+
+            const lower =
+                value.toLowerCase();
+
+
+            let className =
+                "status-running";
+
+
+            if (
+                lower === "completed"
+            ) {
+
+                className =
+                    "status-completed";
+
+            }
+
+
+            if (
+                lower === "failed"
+            ) {
+
+                className =
+                    "status-failed";
+
+            }
+
+
+            return `
+
+                <span
+                    class="status-badge ${className}"
+                >
+                    ${escapeHtml(value)}
+                </span>
+
+            `;
+
+        }
+
+
+        // ==================================================
+        // DATE FORMAT
+        // ==================================================
+
+        function formatDate(value) {
+
+            if (!value) {
+
+                return "-";
+
+            }
+
+
+            const date =
+                new Date(value);
+
+
+            if (
+                Number.isNaN(
+                    date.getTime()
+                )
+            ) {
+
+                return value;
+
+            }
+
+
+            return date.toLocaleString();
+
+        }
+
+
+        // ==================================================
+        // HTML ESCAPE
+        // ==================================================
+
+        function escapeHtml(value) {
+
+            return String(value)
+
+                .replaceAll(
+                    "&",
+                    "&amp;"
+                )
+
+                .replaceAll(
+                    "<",
+                    "&lt;"
+                )
+
+                .replaceAll(
+                    ">",
+                    "&gt;"
+                )
+
+                .replaceAll(
+                    '"',
+                    "&quot;"
+                )
+
+                .replaceAll(
+                    "'",
+                    "&#039;"
+                );
+
+        }
+
+
+        // ==================================================
+        // INITIAL LOAD
+        // ==================================================
+
+        loadActivities();
+
+    </script>
+
+</body>
+
+</html>

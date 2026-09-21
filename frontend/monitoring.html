@@ -1,0 +1,696 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+
+    <title>Monitoring | AI Agent Coordination & Decision Engine</title>
+
+    <link rel="stylesheet" href="style.css">
+
+    <style>
+        .monitor-grid {
+            display: grid;
+            grid-template-columns: repeat(3, 1fr);
+            gap: 18px;
+            margin-bottom: 22px;
+        }
+
+        .monitor-card {
+            background: white;
+            border: 1px solid #e5e7eb;
+            border-radius: 11px;
+            padding: 22px;
+        }
+
+        .monitor-card p {
+            color: #64748b;
+            font-size: 12px;
+            margin-bottom: 7px;
+        }
+
+        .monitor-card h2 {
+            font-size: 27px;
+        }
+
+        .monitor-card span {
+            color: #94a3b8;
+            font-size: 10px;
+        }
+
+        .health-box {
+            display: flex;
+            align-items: center;
+            gap: 12px;
+            padding: 18px 20px;
+            background: white;
+            border: 1px solid #e5e7eb;
+            border-radius: 11px;
+            margin-bottom: 22px;
+        }
+
+        .health-dot {
+            width: 11px;
+            height: 11px;
+            border-radius: 50%;
+            background: #22c55e;
+        }
+
+        .health-box strong {
+            font-size: 14px;
+        }
+
+        .health-box span {
+            display: block;
+            color: #64748b;
+            font-size: 11px;
+            margin-top: 3px;
+        }
+
+        @media (max-width: 900px) {
+            .monitor-grid {
+                grid-template-columns: 1fr;
+            }
+        }
+    </style>
+</head>
+
+<body>
+
+    <!-- Sidebar -->
+    <aside class="sidebar">
+
+        <div class="logo">
+            <div class="logo-icon">AI</div>
+
+            <div>
+                <h2>Agent Engine</h2>
+                <p>Decision Platform</p>
+            </div>
+        </div>
+
+        <nav class="navigation">
+
+            <a href="/" class="nav-item">
+                <span>⌂</span>
+                Dashboard
+            </a>
+
+            <a href="/" class="nav-item">
+                <span>＋</span>
+                New Request
+            </a>
+
+            <a href="/" class="nav-item">
+                <span>◉</span>
+                Workflows
+            </a>
+
+            <a href="/" class="nav-item">
+                <span>▣</span>
+                Agent Activity
+            </a>
+
+            <a href="/monitoring.html" class="nav-item active">
+                <span>◌</span>
+                Monitoring
+            </a>
+
+        </nav>
+
+        <div class="sidebar-bottom">
+
+            <div class="system-status">
+                <span class="status-dot"></span>
+                System Online
+            </div>
+
+            <div class="user-box">
+                <div class="user-avatar">N</div>
+
+                <div>
+                    <strong>Navya</strong>
+                    <small>Administrator</small>
+                </div>
+            </div>
+
+        </div>
+
+    </aside>
+
+
+    <!-- Main -->
+    <main class="main-content">
+
+        <header class="topbar">
+
+            <div>
+                <p class="breadcrumb">
+                    AI Agent Coordination / Monitoring
+                </p>
+
+                <h1>System Monitoring</h1>
+            </div>
+
+            <button
+                class="refresh-btn"
+                onclick="loadMonitoring()"
+            >
+                Refresh
+            </button>
+
+        </header>
+
+
+        <!-- System Health -->
+        <div class="health-box">
+
+            <div class="health-dot"></div>
+
+            <div>
+                <strong>System Operational</strong>
+
+                <span>
+                    FastAPI, workflow engine and PostgreSQL
+                    monitoring data are available.
+                </span>
+            </div>
+
+        </div>
+
+
+        <!-- Monitoring Metrics -->
+        <section class="monitor-grid">
+
+            <div class="monitor-card">
+
+                <p>Total Workflows</p>
+
+                <h2 id="totalWorkflows">0</h2>
+
+                <span>
+                    Workflow executions recorded
+                </span>
+
+            </div>
+
+
+            <div class="monitor-card">
+
+                <p>Completed Workflows</p>
+
+                <h2 id="completedWorkflows">0</h2>
+
+                <span>
+                    Successfully completed
+                </span>
+
+            </div>
+
+
+            <div class="monitor-card">
+
+                <p>Failed Workflows</p>
+
+                <h2 id="failedWorkflows">0</h2>
+
+                <span>
+                    Failed executions
+                </span>
+
+            </div>
+
+
+            <div class="monitor-card">
+
+                <p>Average Execution</p>
+
+                <h2 id="averageExecution">0.00s</h2>
+
+                <span>
+                    Average workflow processing time
+                </span>
+
+            </div>
+
+
+            <div class="monitor-card">
+
+                <p>Agent Activities</p>
+
+                <h2 id="totalActivities">0</h2>
+
+                <span>
+                    Recorded agent executions
+                </span>
+
+            </div>
+
+
+            <div class="monitor-card">
+
+                <p>Agent Success Rate</p>
+
+                <h2 id="successRate">0%</h2>
+
+                <span>
+                    Completed agent activities
+                </span>
+
+            </div>
+
+        </section>
+
+
+        <!-- Agent Performance -->
+        <section class="panel">
+
+            <div class="panel-header">
+
+                <div>
+                    <h2>Agent Performance</h2>
+
+                    <p>
+                        Execution statistics for each agent
+                    </p>
+                </div>
+
+            </div>
+
+
+            <div class="table-container">
+
+                <table>
+
+                    <thead>
+
+                        <tr>
+                            <th>Agent</th>
+                            <th>Executions</th>
+                            <th>Completed</th>
+                            <th>Failed</th>
+                            <th>Avg. Time</th>
+                        </tr>
+
+                    </thead>
+
+                    <tbody id="agentPerformance">
+
+                        <tr>
+                            <td colspan="5" class="empty-state">
+                                Loading monitoring data...
+                            </td>
+                        </tr>
+
+                    </tbody>
+
+                </table>
+
+            </div>
+
+        </section>
+
+
+        <br>
+
+
+        <!-- Recent Activities -->
+        <section class="panel">
+
+            <div class="panel-header">
+
+                <div>
+                    <h2>Recent Agent Activity</h2>
+
+                    <p>
+                        Latest activity recorded by the workflow engine
+                    </p>
+                </div>
+
+            </div>
+
+
+            <div class="activity-table">
+
+                <table>
+
+                    <thead>
+
+                        <tr>
+                            <th>Workflow</th>
+                            <th>Agent</th>
+                            <th>Status</th>
+                            <th>Execution Time</th>
+                            <th>Completed</th>
+                        </tr>
+
+                    </thead>
+
+                    <tbody id="activityTable">
+
+                        <tr>
+                            <td colspan="5" class="empty-state">
+                                Loading...
+                            </td>
+                        </tr>
+
+                    </tbody>
+
+                </table>
+
+            </div>
+
+        </section>
+
+
+        <footer>
+
+            <p>
+                AI Agent Coordination & Decision Engine
+            </p>
+
+            <span>
+                Multi-Agent Workflow Automation Platform
+            </span>
+
+        </footer>
+
+    </main>
+
+
+    <script>
+
+        const API_URL = "http://127.0.0.1:8000";
+
+
+        async function loadMonitoring() {
+
+            try {
+
+                const response =
+                    await fetch(`${API_URL}/dashboard/data`);
+
+                if (!response.ok) {
+                    throw new Error("Unable to load monitoring data");
+                }
+
+                const data =
+                    await response.json();
+
+
+                // -------------------------
+                // Metrics
+                // -------------------------
+
+                document.getElementById(
+                    "totalWorkflows"
+                ).textContent =
+                    data.total_workflows || 0;
+
+
+                document.getElementById(
+                    "completedWorkflows"
+                ).textContent =
+                    data.completed_workflows || 0;
+
+
+                document.getElementById(
+                    "failedWorkflows"
+                ).textContent =
+                    data.failed_workflows || 0;
+
+
+                document.getElementById(
+                    "averageExecution"
+                ).textContent =
+                    `${Number(
+                        data.average_execution || 0
+                    ).toFixed(2)}s`;
+
+
+                const activities =
+                    data.activities || [];
+
+
+                document.getElementById(
+                    "totalActivities"
+                ).textContent =
+                    activities.length;
+
+
+                const completedActivities =
+                    activities.filter(
+                        activity =>
+                            String(activity.status)
+                                .toLowerCase() === "completed"
+                    ).length;
+
+
+                const successRate =
+                    activities.length
+                        ? (
+                            completedActivities /
+                            activities.length
+                        ) * 100
+                        : 0;
+
+
+                document.getElementById(
+                    "successRate"
+                ).textContent =
+                    `${successRate.toFixed(0)}%`;
+
+
+                // -------------------------
+                // Agent Performance
+                // -------------------------
+
+                const performance = {};
+
+
+                activities.forEach(activity => {
+
+                    const agent =
+                        activity.agent_name || "Unknown";
+
+
+                    if (!performance[agent]) {
+
+                        performance[agent] = {
+                            total: 0,
+                            completed: 0,
+                            failed: 0,
+                            times: []
+                        };
+
+                    }
+
+
+                    performance[agent].total++;
+
+
+                    if (
+                        String(activity.status)
+                            .toLowerCase() === "completed"
+                    ) {
+                        performance[agent].completed++;
+                    }
+
+
+                    if (
+                        String(activity.status)
+                            .toLowerCase() === "failed"
+                    ) {
+                        performance[agent].failed++;
+                    }
+
+
+                    if (
+                        activity.execution_time !== null &&
+                        activity.execution_time !== undefined
+                    ) {
+
+                        performance[agent].times.push(
+                            Number(activity.execution_time)
+                        );
+
+                    }
+
+                });
+
+
+                const performanceTable =
+                    document.getElementById(
+                        "agentPerformance"
+                    );
+
+
+                performanceTable.innerHTML = "";
+
+
+                Object.entries(performance).forEach(
+                    ([agent, stats]) => {
+
+                        const average =
+                            stats.times.length
+                                ? stats.times.reduce(
+                                    (a, b) => a + b,
+                                    0
+                                ) / stats.times.length
+                                : 0;
+
+
+                        const row =
+                            document.createElement("tr");
+
+
+                        row.innerHTML = `
+                            <td>${escapeHtml(agent)}</td>
+                            <td>${stats.total}</td>
+                            <td>${stats.completed}</td>
+                            <td>${stats.failed}</td>
+                            <td>${average.toFixed(2)}s</td>
+                        `;
+
+
+                        performanceTable.appendChild(row);
+
+                    }
+                );
+
+
+                // -------------------------
+                // Recent Activities
+                // -------------------------
+
+                const activityTable =
+                    document.getElementById(
+                        "activityTable"
+                    );
+
+
+                activityTable.innerHTML = "";
+
+
+                activities
+                    .slice(0, 20)
+                    .forEach(activity => {
+
+                        const row =
+                            document.createElement("tr");
+
+
+                        row.innerHTML = `
+                            <td>#${activity.workflow_id}</td>
+
+                            <td>
+                                ${escapeHtml(
+                                    activity.agent_name || ""
+                                )}
+                            </td>
+
+                            <td>
+                                ${statusBadge(
+                                    activity.status
+                                )}
+                            </td>
+
+                            <td>
+                                ${
+                                    activity.execution_time !== null
+                                    ? Number(
+                                        activity.execution_time
+                                      ).toFixed(2) + "s"
+                                    : "-"
+                                }
+                            </td>
+
+                            <td>
+                                ${formatDate(
+                                    activity.completed_at
+                                )}
+                            </td>
+                        `;
+
+
+                        activityTable.appendChild(row);
+
+                    });
+
+
+            } catch (error) {
+
+                console.error(error);
+
+            }
+
+        }
+
+
+        function statusBadge(status) {
+
+            const value =
+                String(status || "Unknown");
+
+            const lower =
+                value.toLowerCase();
+
+            let className =
+                "status-running";
+
+
+            if (lower === "completed") {
+                className = "status-completed";
+            }
+
+
+            if (lower === "failed") {
+                className = "status-failed";
+            }
+
+
+            return `
+                <span class="status-badge ${className}">
+                    ${escapeHtml(value)}
+                </span>
+            `;
+
+        }
+
+
+        function formatDate(value) {
+
+            if (!value) {
+                return "-";
+            }
+
+            const date =
+                new Date(value);
+
+            if (Number.isNaN(date.getTime())) {
+                return value;
+            }
+
+            return date.toLocaleString();
+
+        }
+
+
+        function escapeHtml(value) {
+
+            return String(value)
+                .replaceAll("&", "&amp;")
+                .replaceAll("<", "&lt;")
+                .replaceAll(">", "&gt;")
+                .replaceAll('"', "&quot;")
+                .replaceAll("'", "&#039;");
+
+        }
+
+
+        loadMonitoring();
+
+    </script>
+
+</body>
+</html>
